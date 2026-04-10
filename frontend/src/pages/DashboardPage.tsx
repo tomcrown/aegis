@@ -3,8 +3,7 @@
  * Tabs: Dashboard | Vault
  */
 import { useState, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
-import { useEmbeddedSolanaWallet } from "@privy-io/react-auth";
+import { usePrivy, useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 
 import { DevModeToggle } from "@/components/dashboard/DevModeToggle";
@@ -29,8 +28,8 @@ export default function DashboardPage() {
   );
 
   const { logout } = usePrivy();
-  const { wallet } = useEmbeddedSolanaWallet();
-  const walletAddress = wallet?.address ?? null;
+  const { wallets } = useWallets();
+  const walletAddress = getEmbeddedConnectedWallet(wallets)?.address ?? null;
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
   const setPositions = useAegisStore((s) => s.setPositions);

@@ -10,7 +10,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useEmbeddedSolanaWallet } from "@privy-io/react-auth";
+import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
 import { accountApi, sentimentApi } from "@/services/api";
 import { useAegisStore } from "@/stores/useAegisStore";
 import { SentimentBadge } from "@/components/shared/Badge";
@@ -43,8 +43,8 @@ function SentimentRow({ data }: { data: SentimentData }) {
 }
 
 export function SentimentPanel() {
-  const { wallet } = useEmbeddedSolanaWallet();
-  const walletAddress = wallet?.address ?? "";
+  const { wallets } = useWallets();
+  const walletAddress = getEmbeddedConnectedWallet(wallets)?.address ?? "";
   const devMode = useAegisStore((s) => s.devMode);
   const storeSentiment = useAegisStore((s) => s.sentimentMap);
 

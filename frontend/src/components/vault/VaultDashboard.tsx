@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useEmbeddedSolanaWallet } from "@privy-io/react-auth";
+import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
 import { builderApi, vaultApi } from "@/services/api";
 import type { VaultShare, VaultState } from "@/types";
 
@@ -35,8 +35,8 @@ function formatUsdc(val: string | undefined): string {
 }
 
 export function VaultDashboard() {
-  const { wallet } = useEmbeddedSolanaWallet();
-  const walletAddress = wallet?.address ?? "";
+  const { wallets } = useWallets();
+  const walletAddress = getEmbeddedConnectedWallet(wallets)?.address ?? "";
 
   const { data: vaultState } = useQuery<VaultState>({
     queryKey: ["vault-state"],

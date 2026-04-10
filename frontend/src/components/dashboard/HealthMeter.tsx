@@ -7,16 +7,15 @@ import { useAegisStore } from "@/stores/useAegisStore";
 import { accountApi } from "@/services/api";
 import { TierBadge } from "@/components/shared/Badge";
 import { RingMeter } from "@/components/shared/RingMeter";
-import { usePrivy } from "@privy-io/react-auth";
-import { useEmbeddedSolanaWallet } from "@privy-io/react-auth";
+import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
 
 export function HealthMeter() {
   const riskState = useAegisStore((s) => s.riskState);
   const setRiskState = useAegisStore((s) => s.setRiskState);
   const devMode = useAegisStore((s) => s.devMode);
 
-  const { user } = usePrivy();
-  const { wallet: solanaWallet } = useEmbeddedSolanaWallet();
+  const { wallets } = useWallets();
+  const solanaWallet = getEmbeddedConnectedWallet(wallets);
   const walletAddress = solanaWallet?.address ?? "";
 
   async function handleAegisToggle() {

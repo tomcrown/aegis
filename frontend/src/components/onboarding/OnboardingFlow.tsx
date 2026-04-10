@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { useEmbeddedSolanaWallet } from "@privy-io/react-auth";
+import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
 import { onboardingApi } from "@/services/api";
 import { canonical_json_ts } from "@/lib/signing";
 import { clearReferralCode, getStoredReferralCode } from "@/lib/fuul";
@@ -30,7 +30,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState<Step>("intro");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { wallet } = useEmbeddedSolanaWallet();
+  const { wallets } = useWallets();
+  const wallet = getEmbeddedConnectedWallet(wallets);
 
   async function approveBuilderCode() {
     if (!wallet) return;
