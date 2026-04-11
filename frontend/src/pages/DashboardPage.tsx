@@ -3,7 +3,7 @@
  * Tabs: Dashboard | Vault
  */
 import { useState, useEffect } from "react";
-import { usePrivy, useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 
 import { DevModeToggle } from "@/components/dashboard/DevModeToggle";
@@ -17,7 +17,8 @@ import { useAegisWebSocket } from "@/hooks/useAegisWebSocket";
 import { useDevModeSimulation } from "@/hooks/useDevModeSimulation";
 import { useWsEventNotifications } from "@/hooks/useWsEventNotifications";
 import { useAegisStore } from "@/stores/useAegisStore";
-import { accountApi } from "@/services/api";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { accountApi, onboardingApi } from "@/services/api";
 
 type Tab = "dashboard" | "vault";
 
@@ -28,8 +29,8 @@ export default function DashboardPage() {
   );
 
   const { logout } = usePrivy();
-  const { wallets } = useWallets();
-  const walletAddress = getEmbeddedConnectedWallet(wallets)?.address ?? null;
+  const { address } = useSolanaWallet();
+  const walletAddress = address || null;
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
   const setPositions = useAegisStore((s) => s.setPositions);
@@ -38,6 +39,13 @@ export default function DashboardPage() {
   useAegisWebSocket(walletAddress);
   useDevModeSimulation();
   useWsEventNotifications();
+
+  // Fetch agent public key for onboarding flow
+  const { data: agentKeyInfo } = useQuery({
+    queryKey: ["agent-key-info"],
+    queryFn: () => onboardingApi.getAgentKeyInfo(),
+    staleTime: Infinity, // never changes
+  });
 
   // Bootstrap: load initial Aegis status
   useQuery({
@@ -65,7 +73,12 @@ export default function DashboardPage() {
   });
 
   if (!onboarded) {
-    return <OnboardingFlow onComplete={() => setOnboarded(true)} />;
+    return (
+      <OnboardingFlow
+        onComplete={() => setOnboarded(true)}
+        agentPublicKey={agentKeyInfo?.agent_public_key}
+      />
+    );
   }
 
   return (

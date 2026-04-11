@@ -74,6 +74,12 @@ export const accountApi = {
     request<{ status: string }>(`/api/v1/account/aegis/deactivate?wallet=${encodeURIComponent(wallet)}`, {
       method: "POST",
     }),
+
+  demoTriggerHedge: (wallet: string) =>
+    request<{ triggered: boolean; symbol: string; side: string; amount: string; order_id: number }>(
+      `/api/v1/account/aegis/demo-trigger?wallet=${encodeURIComponent(wallet)}`,
+      { method: "POST" }
+    ),
 };
 
 // ── Vault ─────────────────────────────────────────────────────────────────────
@@ -114,6 +120,12 @@ export const onboardingApi = {
 
   approveBuilderCode: (signedPayload: Record<string, unknown>) =>
     request<{ status: string }>("/api/v1/onboarding/approve-builder", {
+      method: "POST",
+      body: JSON.stringify(signedPayload),
+    }),
+
+  bindAgentKey: (signedPayload: Record<string, unknown>) =>
+    request<{ status: string }>("/api/v1/onboarding/bind-agent-key", {
       method: "POST",
       body: JSON.stringify(signedPayload),
     }),

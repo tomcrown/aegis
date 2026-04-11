@@ -58,8 +58,13 @@ class VaultManager:
         Records their vault share in Redis.
         Returns the VaultShare for confirmation.
         """
-        # Calculate total notional across all non-isolated positions
-        notional = sum(to_dec(p.amount) for p in positions if not p.isolated)
+        # Calculate total USD notional across all non-isolated positions
+        # amount is in token units, entry_price is USD — multiply for USD notional
+        notional = sum(
+            to_dec(p.amount) * to_dec(p.entry_price)
+            for p in positions
+            if not p.isolated
+        )
         premium = (notional * _PREMIUM_BPS / Decimal("10000")).quantize(
             Decimal("0.000001"), rounding=ROUND_DOWN
         )

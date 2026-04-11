@@ -69,13 +69,15 @@ class ExecutionEngine:
             keypair=keypair,
         )
 
+        import json as _json
         log.info(
-            "Placing hedge order: wallet=%s symbol=%s side=%s amount=%s builder=%s",
+            "Placing hedge order: wallet=%s symbol=%s side=%s amount=%s builder=%s payload=%s",
             decision.wallet,
             decision.symbol,
             decision.hedge_side,
             decision.hedge_amount,
             self._builder_code,
+            _json.dumps({k: v for k, v in payload.items() if k != "signature"}),
         )
 
         response = await self._pacifica.create_market_order(payload)

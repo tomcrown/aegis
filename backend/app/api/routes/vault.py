@@ -16,5 +16,15 @@ async def vault_state(request: Request) -> VaultState:
 async def vault_share(wallet: str, request: Request) -> VaultShare:
     share = await request.app.state.vault.get_user_share(wallet)
     if not share:
-        raise HTTPException(status_code=404, detail="No vault share found for this wallet")
+        # Return a zeroed-out share so the UI always renders "Your Position"
+        from app.models.vault import VaultShare as VS
+        import time
+        return VS(
+            wallet=wallet,
+            deposited_usdc="0",
+            share_fraction="0",
+            yield_earned="0",
+            active_hedges=0,
+            joined_at_ms=int(time.time() * 1000),
+        )
     return share

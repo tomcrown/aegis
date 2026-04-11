@@ -6,11 +6,14 @@ Conversion to Decimal happens only at computation boundaries.
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from pydantic import ConfigDict
 
 
 # ── Account ───────────────────────────────────────────────────────────────────
 
 class AccountInfo(BaseModel):
+    model_config = ConfigDict(extra="ignore")   # ignore unknown Pacifica fields
+
     balance: str
     fee_level: int
     maker_fee: str
@@ -20,7 +23,7 @@ class AccountInfo(BaseModel):
     available_to_withdraw: str
     pending_balance: str
     total_margin_used: str
-    cross_mmr: str          # Primary health metric — string decimal
+    cross_mmr: str          # Already a percentage value e.g. "84.32"
     positions_count: int
     orders_count: int
     stop_orders_count: int
@@ -28,24 +31,35 @@ class AccountInfo(BaseModel):
 
 
 class Position(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     symbol: str
-    side: str                # "long" or "short"  (NOT "bid"/"ask")
+    side: str                # normalised to "long"/"short" from Pacifica's "bid"/"ask"
     amount: str
     entry_price: str
-    margin: str = "0"        # populated only for isolated positions
+    margin: str = "0"
     funding: str = "0"
     isolated: bool
+    liquidation_price: str = "0"
     created_at: int
     updated_at: int
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):  # type: ignore[override]
+        if isinstance(obj, dict) and obj.get("side") in ("bid", "ask"):
+            obj = {**obj, "side": "long" if obj["side"] == "bid" else "short"}
+        return super().model_validate(obj, **kwargs)
 
 
 # ── Orders ────────────────────────────────────────────────────────────────────
 
 class OrderResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     order_id: int
 
 
 class CancelOrderResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     order_id: int | None = None
     success: bool = True
 

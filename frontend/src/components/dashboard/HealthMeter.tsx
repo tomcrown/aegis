@@ -3,20 +3,35 @@
  * Shows current tier badge, Aegis toggle, and threshold slider.
  */
 
+import { useState } from "react";
 import { useAegisStore } from "@/stores/useAegisStore";
 import { accountApi } from "@/services/api";
 import { TierBadge } from "@/components/shared/Badge";
 import { RingMeter } from "@/components/shared/RingMeter";
-import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 
 export function HealthMeter() {
   const riskState = useAegisStore((s) => s.riskState);
   const setRiskState = useAegisStore((s) => s.setRiskState);
   const devMode = useAegisStore((s) => s.devMode);
 
-  const { wallets } = useWallets();
-  const solanaWallet = getEmbeddedConnectedWallet(wallets);
-  const walletAddress = solanaWallet?.address ?? "";
+  const { address: walletAddress } = useSolanaWallet();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoResult, setDemoResult] = useState<string | null>(null);
+
+  async function handleDemoTrigger() {
+    if (!walletAddress) return;
+    setDemoLoading(true);
+    setDemoResult(null);
+    try {
+      const result = await accountApi.demoTriggerHedge(walletAddress);
+      setDemoResult(`Hedge placed! Order #${result.order_id} — ${result.amount} ${result.symbol} ${result.side}`);
+    } catch (err) {
+      setDemoResult(err instanceof Error ? err.message : "Trigger failed");
+    } finally {
+      setDemoLoading(false);
+    }
+  }
 
   async function handleAegisToggle() {
     if (!walletAddress) return;
@@ -76,6 +91,24 @@ export function HealthMeter() {
         >
           {riskState.aegisActive ? "Deactivate Aegis" : "Activate Aegis Protection"}
         </button>
+
+        {/* Demo trigger — only visible in dev mode */}
+        {devMode.enabled && (
+          <div className="w-full space-y-2">
+            <button
+              onClick={() => void handleDemoTrigger()}
+              disabled={demoLoading || !walletAddress}
+              className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/20 disabled:opacity-50"
+            >
+              {demoLoading ? "Placing hedge..." : "Force Trigger Hedge (Demo)"}
+            </button>
+            {demoResult && (
+              <p className="rounded-lg bg-aegis-bg px-3 py-2 text-center text-xs text-aegis-muted">
+                {demoResult}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

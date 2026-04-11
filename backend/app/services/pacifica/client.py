@@ -124,15 +124,28 @@ class PacificaClient:
 
         raise PacificaError(0, f"Max retries ({_MAX_RETRIES}) exceeded for {path}")
 
+    # ── Response unwrapping ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _unwrap(raw: Any) -> Any:
+        """
+        Pacifica wraps every response in {success, data, error, code}.
+        Extract .data — if not present, return raw as-is.
+        """
+        if isinstance(raw, dict) and "success" in raw:
+            return raw.get("data")
+        return raw
+
     # ── Account ───────────────────────────────────────────────────────────────
 
     async def get_account_info(self, wallet: str) -> AccountInfo:
-        data = await self._get("/account", params={"account": wallet})
-        return AccountInfo.model_validate(data)
+        raw = await self._get("/account", params={"account": wallet})
+        log.debug("raw account response: %s", raw)
+        return AccountInfo.model_validate(self._unwrap(raw))
 
     async def get_positions(self, wallet: str) -> list[Position]:
-        data = await self._get("/positions", params={"account": wallet})
-        # Pacifica returns a list directly
+        raw = await self._get("/positions", params={"account": wallet})
+        data = self._unwrap(raw)
         if isinstance(data, list):
             return [Position.model_validate(p) for p in data]
         return []
@@ -141,9 +154,10 @@ class PacificaClient:
 
     async def get_market_info(self) -> dict[str, MarketInfo]:
         """Returns a dict keyed by symbol."""
-        data = await self._get("/info")
+        raw = await self._get("/info")
+        data = self._unwrap(raw)
         result: dict[str, MarketInfo] = {}
-        items = data if isinstance(data, list) else data.get("data", [])
+        items = data if isinstance(data, list) else []
         for item in items:
             info = MarketInfo.model_validate(item)
             result[info.symbol] = info
@@ -162,48 +176,61 @@ class PacificaClient:
                 "create_market_order called without builder_code='AEGIS'. "
                 "All orders must be constructed via signing helpers."
             )
-        data = await self._post("/orders/create_market", payload)
-        return OrderResponse.model_validate(data)
+        raw = await self._post("/orders/create_market", payload)
+        log.debug("create_market_order raw response: %s", raw)
+        return OrderResponse.model_validate(self._unwrap(raw))
 
     async def cancel_order(self, payload: dict[str, Any]) -> CancelOrderResponse:
         """Submit a pre-signed cancel_order payload."""
-        data = await self._post("/orders/cancel", payload)
-        return CancelOrderResponse.model_validate(data)
+        raw = await self._post("/orders/cancel", payload)
+        log.debug("cancel_order raw response: %s", raw)
+        return CancelOrderResponse.model_validate(self._unwrap(raw))
 
     async def create_stop_order(self, payload: dict[str, Any]) -> OrderResponse:
         """Submit a pre-signed stop order payload (used for hedge stop-losses)."""
         if payload.get("builder_code") != "AEGIS":
             raise ValueError("create_stop_order called without builder_code='AEGIS'.")
-        data = await self._post("/orders/stop/create", payload)
-        return OrderResponse.model_validate(data)
+        raw = await self._post("/orders/stop/create", payload)
+        log.debug("create_stop_order raw response: %s", raw)
+        return OrderResponse.model_validate(self._unwrap(raw))
 
     # ── Builder ───────────────────────────────────────────────────────────────
 
     async def approve_builder_code(self, signed_payload: dict[str, Any]) -> dict[str, Any]:
         """
         Forward a user-signed builder code approval to Pacifica.
-        The payload is signed by the USER's wallet (Privy), not the Agent Key.
+        The payload is signed by the USER's wallet, not the Agent Key.
         """
         return await self._post("/account/builder_codes/approve", signed_payload)
+
+    async def bind_agent_key(self, signed_payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Bind the Aegis Agent Key to the user's account.
+        Endpoint: POST /agent/bind
+        The payload is signed by the USER's wallet authorizing the agent_wallet pubkey.
+        """
+        return await self._post("/agent/bind", signed_payload)
 
     async def get_builder_trades(
         self,
         builder_code: str,
         limit: int = 100,
     ) -> list[BuilderTrade]:
-        data = await self._get(
+        raw = await self._get(
             "/builder/trades",
             params={"builder_code": builder_code, "limit": limit},
         )
-        items = data if isinstance(data, list) else data.get("data", [])
+        data = self._unwrap(raw)
+        items = data if isinstance(data, list) else []
         return [BuilderTrade.model_validate(t) for t in items]
 
     async def get_builder_leaderboard(self, builder_code: str) -> list[dict[str, Any]]:
-        data = await self._get(
+        raw = await self._get(
             "/leaderboard/builder_code",
             params={"builder_code": builder_code},
         )
-        return data if isinstance(data, list) else data.get("data", [])
+        data = self._unwrap(raw)
+        return data if isinstance(data, list) else []
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 

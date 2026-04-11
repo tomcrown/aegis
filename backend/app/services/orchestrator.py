@@ -172,15 +172,17 @@ class Orchestrator:
             active_hedge_order_ids=active_hedges,
         )
 
-        # Push risk state update to frontend
-        cross_mmr_pct = float(account_info.cross_mmr) * 100
+        # Push risk state update to frontend — cross_mmr is already a percentage
+        cross_mmr_pct = float(account_info.cross_mmr)
         await ws_manager.broadcast(wallet, {
             "type": "mmr_update",
             "wallet": wallet,
-            "cross_mmr": account_info.cross_mmr,
-            "cross_mmr_pct": cross_mmr_pct,
-            "risk_tier": output.risk_tier.value,
             "timestamp_ms": int(time.time() * 1000),
+            "payload": {
+                "cross_mmr_pct": cross_mmr_pct,
+                "risk_tier": output.risk_tier.value,
+                "cross_mmr": account_info.cross_mmr,
+            },
         })
 
         # ── Open hedges ───────────────────────────────────────────────────────
@@ -193,13 +195,15 @@ class Orchestrator:
                 await ws_manager.broadcast(wallet, {
                     "type": "hedge_opened",
                     "wallet": wallet,
-                    "symbol": hedge.symbol,
-                    "order_id": order.order_id,
-                    "amount": hedge.hedge_amount,
-                    "side": hedge.hedge_side,
-                    "sentiment": hedge.sentiment.value,
-                    "cross_mmr": output.cross_mmr,
                     "timestamp_ms": int(time.time() * 1000),
+                    "payload": {
+                        "symbol": hedge.symbol,
+                        "order_id": order.order_id,
+                        "amount": hedge.hedge_amount,
+                        "side": hedge.hedge_side,
+                        "sentiment": hedge.sentiment.value,
+                        "cross_mmr": output.cross_mmr,
+                    },
                 })
             except Exception as exc:
                 log.error(
@@ -216,9 +220,11 @@ class Orchestrator:
                 await ws_manager.broadcast(wallet, {
                     "type": "hedge_closed",
                     "wallet": wallet,
-                    "symbol": recovery.symbol,
-                    "order_id": recovery.order_id,
                     "timestamp_ms": int(time.time() * 1000),
+                    "payload": {
+                        "symbol": recovery.symbol,
+                        "order_id": recovery.order_id,
+                    },
                 })
             except Exception as exc:
                 log.error(
@@ -231,7 +237,9 @@ class Orchestrator:
             await ws_manager.broadcast(wallet, {
                 "type": "alert",
                 "wallet": wallet,
-                "message": f"Risk rising — cross_mmr at {cross_mmr_pct:.1f}%",
-                "cross_mmr_pct": cross_mmr_pct,
                 "timestamp_ms": int(time.time() * 1000),
+                "payload": {
+                    "message": f"Risk rising — cross_mmr at {cross_mmr_pct:.1f}%",
+                    "cross_mmr_pct": cross_mmr_pct,
+                },
             })

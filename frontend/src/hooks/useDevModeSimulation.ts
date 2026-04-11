@@ -45,9 +45,9 @@ export function useDevModeSimulation(): void {
         realMmrRef.current + BASE_MMR_BOOST * (drop / 4)
       );
       const tier =
-        simulatedMmrPct >= 85
+        simulatedMmrPct >= 90
           ? "hedge"
-          : simulatedMmrPct >= 70
+          : simulatedMmrPct >= 80
             ? "watch"
             : "safe";
 

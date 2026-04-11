@@ -15,27 +15,63 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+import json
+import logging
+
 from app.core.agent_key import get_agent_pubkey
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
 class BuilderApprovalRequest(BaseModel):
     """
-    Signed payload from the user's Privy wallet — forwarded verbatim to Pacifica.
-    The frontend signs this; we never see or need the user's private key.
+    POST body forwarded to Pacifica — flat structure, no type/data wrapper.
+    Signed message (not sent directly) uses nested data: {type, expiry_window, timestamp, data:{builder_code, max_fee_rate}}
     """
     account: str
+    signature: str
     timestamp: int
     expiry_window: int
+    builder_code: str
+    max_fee_rate: str
+
+
+class BindAgentKeyRequest(BaseModel):
+    """
+    User-signed payload to authorize Aegis Agent Key on their Pacifica account.
+    Signed fields: type, expiry_window, timestamp, agent_wallet
+    POST body: account + signature + timestamp + expiry_window + agent_wallet
+    """
+    account: str
     signature: str
-    data: dict  # contains builder_code, max_fee_rate etc.
+    timestamp: int
+    expiry_window: int
+    agent_wallet: str
 
 
 class AgentKeyInfoResponse(BaseModel):
     agent_public_key: str
     permissions: list[str]
     cannot_do: list[str]
+
+
+@router.post("/bind-agent-key")
+async def bind_agent_key(
+    body: BindAgentKeyRequest,
+    request: Request,
+) -> dict:
+    """
+    Forward user-signed agent key binding to Pacifica.
+    After this, the Aegis Agent Key can sign orders on behalf of this user.
+    """
+    try:
+        payload = body.model_dump()
+        log.info("bind-agent-key payload → Pacifica: %s", json.dumps({k: v for k, v in payload.items() if k != "signature"}, indent=2))
+        result = await request.app.state.pacifica.bind_agent_key(payload)
+        return {"status": "bound", "result": result}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/approve-builder")
@@ -48,7 +84,9 @@ async def approve_builder_code(
     This must be called once per user during onboarding.
     """
     try:
-        result = await request.app.state.pacifica.approve_builder_code(body.model_dump())
+        payload = body.model_dump()
+        log.info("approve-builder payload → Pacifica: %s", json.dumps(payload, indent=2))
+        result = await request.app.state.pacifica.approve_builder_code(payload)
         return {"status": "approved", "result": result}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

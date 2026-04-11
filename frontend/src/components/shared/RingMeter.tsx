@@ -10,9 +10,9 @@ interface RingMeterProps {
 }
 
 function colorForPct(pct: number): string {
-  if (pct >= 85) return "#ef4444"; // red
-  if (pct >= 70) return "#f59e0b"; // amber
-  return "#22c55e";                // green
+  if (pct >= 90) return "#ef4444"; // red — hedge zone (cross_mmr ≤ 110%)
+  if (pct >= 80) return "#f59e0b"; // amber — watch zone (cross_mmr ≤ 120%)
+  return "#22c55e";                // green — safe (cross_mmr > 120%)
 }
 
 export function RingMeter({ pct, size = 200, thickness = 16 }: RingMeterProps) {

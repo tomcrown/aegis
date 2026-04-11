@@ -36,6 +36,10 @@ export function useAegisWebSocket(wallet: string | null): void {
   const mountedRef = useRef(true);
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
+  const devModeRef = useRef(false);
+  // Keep a ref so the WS message handler (closed over in useEffect) sees live value
+  const devModeEnabled = useAegisStore((s) => s.devMode.enabled);
+  useEffect(() => { devModeRef.current = devModeEnabled; }, [devModeEnabled]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -80,12 +84,17 @@ export function useAegisWebSocket(wallet: string | null): void {
     function handleEvent(event: WsEvent) {
       switch (event.type) {
         case "mmr_update": {
+          // Dev mode overrides the store — don't let real WS data clobber it
+          if (devModeRef.current) break;
           const payload = event.payload as {
             cross_mmr_pct: number;
             risk_tier: RiskTier;
           };
+          // Pacifica cross_mmr > 100% = safe, 100% = liquidation.
+          // Normalize to 0-100 danger scale: 200%-safe = 0, 100%-liq = 100.
+          const dangerPct = Math.max(0, Math.min(100, 200 - payload.cross_mmr_pct));
           setRiskState({
-            crossMmrPct: payload.cross_mmr_pct,
+            crossMmrPct: dangerPct,
             tier: payload.risk_tier,
           });
           break;

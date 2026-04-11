@@ -39,9 +39,12 @@ from app.utils.decimal_utils import to_dec, to_wire
 log = logging.getLogger(__name__)
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
-_HEDGE_THRESHOLD = Decimal("85")    # cross_mmr % ≥ this → execute hedge
-_WATCH_THRESHOLD = Decimal("70")    # cross_mmr % ≥ this → watch tier
-_RECOVER_THRESHOLD = Decimal("65")  # cross_mmr % < this → close hedges
+# Pacifica cross_mmr: HIGH = safe, LOW = dangerous. Liquidation at ~100%.
+# We hedge when cross_mmr drops toward 100% (the liquidation floor).
+_SAFE_THRESHOLD = Decimal("150")     # cross_mmr % > this → SAFE, do nothing
+_WATCH_THRESHOLD = Decimal("120")    # cross_mmr % ≤ this → WATCH, alert only
+_HEDGE_THRESHOLD = Decimal("110")    # cross_mmr % ≤ this → HEDGE, execute
+_RECOVER_THRESHOLD = Decimal("140")  # cross_mmr % > this (while hedged) → close hedges
 
 # ── Hedge multipliers by sentiment ────────────────────────────────────────────
 _MULTIPLIERS: dict[Sentiment, Decimal] = {
@@ -55,14 +58,15 @@ _MIN_HEDGE_AMOUNT = Decimal("0.001")
 
 
 def _cross_mmr_pct(account: AccountSnapshot) -> Decimal:
-    """Convert cross_mmr string (e.g. '0.8432') to percentage (84.32)."""
-    return to_dec(account.cross_mmr) * Decimal("100")
+    """Pacifica cross_mmr is already a percentage (e.g. '84.32'), use directly."""
+    return to_dec(account.cross_mmr)
 
 
 def _classify_tier(mmr_pct: Decimal) -> RiskTier:
-    if mmr_pct >= _HEDGE_THRESHOLD:
+    # Low cross_mmr = danger (approaching 100% liquidation floor)
+    if mmr_pct <= _HEDGE_THRESHOLD:
         return RiskTier.HEDGE
-    if mmr_pct >= _WATCH_THRESHOLD:
+    if mmr_pct <= _WATCH_THRESHOLD:
         return RiskTier.WATCH
     return RiskTier.SAFE
 
@@ -80,8 +84,9 @@ def _compute_hedge_amount(
     Compute hedge size = position_amount × multiplier.
     Rounded down to 8 decimal places to avoid over-hedging.
     """
+    # Round to 0.00001 — Pacifica lot size for most perp markets
     return (to_dec(position_amount) * multiplier).quantize(
-        Decimal("0.00000001"), rounding=ROUND_DOWN
+        Decimal("0.00001"), rounding=ROUND_DOWN
     )
 
 
@@ -115,8 +120,8 @@ def evaluate(
         account.wallet, mmr_pct, tier.value, len(account.positions),
     )
 
-    # ── Recovery: close existing hedges if account is healthy ─────────────────
-    if mmr_pct < _RECOVER_THRESHOLD:
+    # ── Recovery: close existing hedges if account health has improved ────────
+    if mmr_pct > _RECOVER_THRESHOLD:
         for symbol, order_id in active_hedge_order_ids.items():
             output.hedges_to_close.append(
                 RecoveryDecision(

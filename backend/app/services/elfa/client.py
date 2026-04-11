@@ -120,6 +120,10 @@ class ElfaClient:
         """
         GET /v2/aggregations/trending-tokens
         Returns raw items list from the Elfa API.
+
+        Actual response shape:
+          {"success": true, "data": {"total": N, "page": 1, "data": [{...}]}}
+        Items have: token (lowercase), current_count, previous_count, change_percent
         """
         resp = await self._client.get(
             "/aggregations/trending-tokens",
@@ -134,25 +138,55 @@ class ElfaClient:
             raise RuntimeError(f"Elfa API returned {resp.status_code}: {resp.text}")
 
         body = resp.json()
-        return body.get("data", body) if isinstance(body, dict) else body
+
+        # Unwrap outer envelope: {success, data: {total, page, data: [...]}}
+        if isinstance(body, dict):
+            outer = body.get("data", body)
+            if isinstance(outer, dict):
+                items = outer.get("data", [])
+            elif isinstance(outer, list):
+                items = outer
+            else:
+                items = []
+        elif isinstance(body, list):
+            items = body
+        else:
+            items = []
+
+        log.debug("Elfa fetched %d trending tokens", len(items))
+        return items if isinstance(items, list) else []
 
     def _extract_symbol(self, items: list[dict], symbol: str) -> SentimentData:
         """
         Find the symbol in trending-tokens response and normalise its score.
+
+        Elfa items use 'token' (lowercase) and 'change_percent' (no raw score).
+        Score derived from change_percent: score = clamp(50 + change_percent/2, 0, 100)
         Falls back to NEUTRAL with score 50 if symbol not in response.
         """
-        upper = symbol.upper()
+        lower = symbol.lower()
         for item in items:
-            item_symbol = (item.get("symbol") or item.get("ticker") or "").upper()
-            if item_symbol == upper:
-                raw_score = float(item.get("score", 50) or 50)
-                # Clamp to 0–100
+            if not isinstance(item, dict):
+                continue
+            # Elfa uses 'token' field (lowercase), fallback to 'symbol'/'ticker'
+            item_token = (
+                item.get("token") or item.get("symbol") or item.get("ticker") or ""
+            ).lower()
+            if item_token == lower:
+                # Derive score from change_percent: 0% change → 50, +100% → 100, -100% → 0
+                change_pct = float(item.get("change_percent", 0) or 0)
+                raw_score = 50.0 + (change_pct / 2.0)
                 score = max(0.0, min(100.0, raw_score))
+                mentions = int(item.get("current_count", 0) or 0)
+                log.info(
+                    "Elfa: %s change_pct=%.1f%% → score=%.1f sentiment=%s mentions=%d",
+                    symbol, change_pct, score, _classify_sentiment(score).value, mentions,
+                )
                 return SentimentData(
                     symbol=symbol,
                     score=score,
                     sentiment=_classify_sentiment(score),
-                    raw_mentions=int(item.get("mention_count", 0) or 0),
+                    raw_mentions=mentions,
                 )
 
         # Symbol not trending — return neutral with a moderate score

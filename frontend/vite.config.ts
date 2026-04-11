@@ -3,6 +3,9 @@ import path from "path";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  define: {
+    "global": "globalThis",
+  },
   test: {
     environment: "node",
   },

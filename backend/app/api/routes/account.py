@@ -102,3 +102,81 @@ async def aegis_status(
     active = await request.app.state.vault.is_user_active(wallet)
     threshold = await request.app.state.vault.get_user_threshold(wallet)
     return {"wallet": wallet, "active": active, "threshold": threshold}
+
+
+@router.post("/aegis/demo-trigger")
+async def demo_trigger_hedge(
+    request: Request,
+    wallet: str = Query(..., description="Wallet to force-trigger a hedge for"),
+) -> dict:
+    """
+    DEMO ONLY — forces a hedge evaluation bypassing the cross_mmr threshold.
+    Used to demonstrate hedge execution in the hackathon demo video.
+    Calls the real Pacifica testnet API to place an actual order.
+    """
+    from app.models.risk import Sentiment
+    from app.models.risk import HedgeDecision, RiskTier
+    from app.api.websocket.events import manager as ws_manager
+    import time
+
+    try:
+        positions = await request.app.state.pacifica.get_positions(wallet)
+        account_info = await request.app.state.pacifica.get_account_info(wallet)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch account: {exc}") from exc
+
+    if not positions:
+        raise HTTPException(status_code=400, detail="No open positions to hedge")
+
+    position = positions[0]
+    hedge_side = "ask" if position.side == "long" else "bid"
+
+    from decimal import Decimal, ROUND_DOWN
+    from app.utils.decimal_utils import to_dec, to_wire
+
+    # Hedge 50% of position (neutral sentiment for demo)
+    # Round to lot size 0.00001 — Pacifica requires multiples of lot size
+    hedge_amount = (to_dec(position.amount) * Decimal("0.5")).quantize(
+        Decimal("0.00001"), rounding=ROUND_DOWN
+    )
+
+    decision = HedgeDecision(
+        wallet=wallet,
+        symbol=position.symbol,
+        hedge_side=hedge_side,
+        hedge_amount=to_wire(hedge_amount),
+        sentiment=Sentiment.NEUTRAL,
+        hedge_multiplier=Decimal("0.5"),
+        cross_mmr=account_info.cross_mmr,
+        risk_tier=RiskTier.HEDGE,
+    )
+
+    ws_monitor = request.app.state.orchestrator._ws_monitor
+    mark_price = await ws_monitor.get_mark_price(position.symbol)
+
+    order = await request.app.state.orchestrator._execution.open_hedge(
+        decision, mark_price=mark_price
+    )
+    await request.app.state.vault.record_hedge(wallet, position.symbol, order.order_id)
+
+    await ws_manager.broadcast(wallet, {
+        "type": "hedge_opened",
+        "wallet": wallet,
+        "timestamp_ms": int(time.time() * 1000),
+        "payload": {
+            "symbol": position.symbol,
+            "order_id": order.order_id,
+            "amount": to_wire(hedge_amount),
+            "side": hedge_side,
+            "sentiment": "neutral",
+            "cross_mmr": account_info.cross_mmr,
+        },
+    })
+
+    return {
+        "triggered": True,
+        "symbol": position.symbol,
+        "side": hedge_side,
+        "amount": to_wire(hedge_amount),
+        "order_id": order.order_id,
+    }

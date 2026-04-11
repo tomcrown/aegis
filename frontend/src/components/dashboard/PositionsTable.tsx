@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useWallets, getEmbeddedConnectedWallet } from "@privy-io/react-auth";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { accountApi } from "@/services/api";
 import type { Position } from "@/types";
 
@@ -32,8 +32,7 @@ function SideChip({ side }: { side: Position["side"] }) {
 }
 
 export function PositionsTable() {
-  const { wallets } = useWallets();
-  const walletAddress = getEmbeddedConnectedWallet(wallets)?.address ?? "";
+  const { address: walletAddress } = useSolanaWallet();
 
   const { data: positions = [], isLoading } = useQuery({
     queryKey: ["positions", walletAddress],
