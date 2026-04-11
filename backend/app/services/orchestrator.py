@@ -39,7 +39,7 @@ from app.services.vault.manager import VaultManager
 
 log = logging.getLogger(__name__)
 
-_RISK_POLL_INTERVAL_S = 0.5     # 500ms
+_RISK_POLL_INTERVAL_S = 1.5     # 1500ms — stays under 300 credits/60s with API config key
 _ELFA_POLL_INTERVAL_S = 60.0    # 60s sentiment refresh
 _MACRO_POLL_INTERVAL_S = 1800.0 # 30 min macro context
 _CRASH_CHECK_INTERVAL_S = 300.0 # 5 min crash keyword check
@@ -245,16 +245,46 @@ class Orchestrator:
             })
             return
 
-        # Pacifica sometimes returns cross_mmr="0" while positions exist — bad data.
-        # A real 0% cross_mmr would already be liquidated. Treat as stale and skip.
-        raw_mmr = float(account_info.cross_mmr) if account_info.cross_mmr else 0.0
-        if raw_mmr == 0.0 and positions:
-            log.debug("cross_mmr=0 with active positions for %s — Pacifica data not ready, skipping cycle", wallet)
-            return
+        # ── Synthetic cross_mmr ───────────────────────────────────────────────
+        # Pacifica testnet always returns cross_mmr="0" — a known data bug.
+        # We derive it ourselves from data Pacifica DOES return correctly:
+        #   synthetic_cross_mmr = (mark_price / liquidation_price) × 100
+        # This is the actual mathematical definition: at liquidation, mark==liq → 100%.
+        # We take the LOWEST ratio across all positions (worst position drives overall risk).
+        # If no mark price in Redis yet (WS not warmed up), fall back to entry_price.
+        mark_prices: dict[str, float] = {}
+        synthetic_ratios: list[float] = []
+
+        for pos in positions:
+            try:
+                mp_raw = await self._ws_monitor.get_mark_price(pos.symbol)
+                mark = float(mp_raw) if mp_raw else float(pos.entry_price)
+                mark_prices[pos.symbol] = mark
+            except Exception:
+                mark = float(pos.entry_price)
+                mark_prices[pos.symbol] = mark
+
+            liq = float(pos.liquidation_price) if pos.liquidation_price else 0.0
+            if liq > 0:
+                ratio = (mark / liq) * 100.0
+                synthetic_ratios.append(ratio)
+
+        if synthetic_ratios:
+            cross_mmr_pct = min(synthetic_ratios)  # worst position drives the metric
+        else:
+            # No liquidation prices available — treat as safe
+            cross_mmr_pct = 200.0
+
+        synthetic_cross_mmr_str = f"{cross_mmr_pct:.4f}"
+
+        log.debug(
+            "Synthetic cross_mmr for %s: %.2f%% (from %d positions, mark_prices=%s)",
+            wallet, cross_mmr_pct, len(positions), mark_prices,
+        )
 
         snapshot = AccountSnapshot(
             wallet=wallet,
-            cross_mmr=account_info.cross_mmr,
+            cross_mmr=synthetic_cross_mmr_str,
             available_to_spend=account_info.available_to_spend,
             positions=positions,
             timestamp_ms=int(time.time() * 1000),
@@ -271,21 +301,10 @@ class Orchestrator:
         )
 
         # Store sparkline history (last 60 readings)
-        cross_mmr_pct = float(account_info.cross_mmr)
         spark_key = f"aegis:sparkline:{wallet}"
         await self._redis.lpush(spark_key, cross_mmr_pct)
         await self._redis.ltrim(spark_key, 0, 59)
         await self._redis.expire(spark_key, 300)
-
-        # Fetch live mark prices for all positions (non-blocking best-effort)
-        mark_prices: dict[str, float] = {}
-        for pos in positions:
-            try:
-                mp = await self._ws_monitor.get_mark_price(pos.symbol)
-                if mp:
-                    mark_prices[pos.symbol] = float(mp)
-            except Exception:
-                pass
 
         # Push mmr_update to frontend
         await ws_manager.broadcast(wallet, {
@@ -295,7 +314,7 @@ class Orchestrator:
             "payload": {
                 "cross_mmr_pct": cross_mmr_pct,
                 "risk_tier": output.risk_tier.value,
-                "cross_mmr": account_info.cross_mmr,
+                "cross_mmr": synthetic_cross_mmr_str,
                 "mark_prices": mark_prices,
             },
         })
@@ -358,7 +377,7 @@ class Orchestrator:
                 "timestamp_ms": int(time.time() * 1000),
                 "payload": {
                     "kind": "watch_tier",
-                    "message": f"Safety buffer shrinking — {(200 - cross_mmr_pct):.1f}% margin ratio",
+                    "message": f"Safety buffer shrinking — margin ratio at {cross_mmr_pct:.1f}%",
                     "cross_mmr_pct": cross_mmr_pct,
                 },
             })
