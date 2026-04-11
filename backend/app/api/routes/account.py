@@ -4,11 +4,15 @@ All Aegis activation/deactivation logic routes through VaultManager.
 """
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.models.pacifica import AccountInfo, Position
 from app.services.fuul.client import send_activation_event
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -94,6 +98,17 @@ async def deactivate_aegis(
     return {"status": "deactivated", "wallet": wallet}
 
 
+@router.get("/aegis/sparkline")
+async def aegis_sparkline(
+    request: Request,
+    wallet: str = Query(...),
+) -> dict:
+    """Return last 60 cross_mmr readings for sparkline chart (newest first)."""
+    raw = await request.app.state.redis.lrange(f"aegis:sparkline:{wallet}", 0, 59)
+    values = [float(v) for v in raw] if raw else []
+    return {"wallet": wallet, "values": values}
+
+
 @router.get("/aegis/status")
 async def aegis_status(
     request: Request,
@@ -102,6 +117,23 @@ async def aegis_status(
     active = await request.app.state.vault.is_user_active(wallet)
     threshold = await request.app.state.vault.get_user_threshold(wallet)
     return {"wallet": wallet, "active": active, "threshold": threshold}
+
+
+class AegisThresholdRequest(BaseModel):
+    wallet: str
+    threshold: int
+
+
+@router.patch("/aegis/threshold")
+async def update_threshold(
+    body: AegisThresholdRequest,
+    request: Request,
+) -> dict:
+    """Update the user's hedge threshold without reactivating Aegis."""
+    await request.app.state.vault.update_user_threshold(
+        wallet=body.wallet, threshold=body.threshold
+    )
+    return {"wallet": body.wallet, "threshold": body.threshold}
 
 
 @router.post("/aegis/demo-trigger")
@@ -180,3 +212,76 @@ async def demo_trigger_hedge(
         "amount": to_wire(hedge_amount),
         "order_id": order.order_id,
     }
+
+
+class ApiConfigKeyRequest(BaseModel):
+    account: str
+    signature: str
+    timestamp: int
+    expiry_window: int = 30_000
+
+
+@router.post("/aegis/api-config-key")
+async def create_api_config_key(
+    body: ApiConfigKeyRequest,
+    request: Request,
+) -> dict:
+    """
+    Forward a Phantom-signed create_api_key request to Pacifica.
+    The frontend signs the payload; this endpoint forwards it and stores the key.
+    """
+    import os
+    pacifica = request.app.state.pacifica
+
+    payload = {
+        "account": body.account,
+        "signature": body.signature,
+        "timestamp": body.timestamp,
+        "expiry_window": body.expiry_window,
+    }
+
+    try:
+        raw = await pacifica._post("/account/api_keys/create", payload)
+        log.debug("api_keys/create raw: %s", raw)
+    except Exception as exc:
+        raise HTTPException(502, f"Pacifica api_keys/create failed: {exc}") from exc
+
+    # Unwrap
+    api_key = None
+    if isinstance(raw, dict):
+        data = raw.get("data") or raw
+        api_key = data.get("api_key") if isinstance(data, dict) else None
+
+    if not api_key:
+        raise HTTPException(502, f"No api_key in Pacifica response: {raw}")
+
+    # Write it into the running process settings + .env for persistence
+    from app.core.config import get_settings
+    settings = get_settings()
+    settings.pacifica_api_config_key = api_key
+
+    # Also patch the live HTTP client headers without restart
+    pacifica._client.headers.update({"PF-API-KEY": api_key})
+
+    # Persist to .env
+    env_path = os.path.join(os.path.dirname(__file__), "../../../.env")
+    env_path = os.path.normpath(env_path)
+    try:
+        with open(env_path, "r") as f:
+            content = f.read()
+        if "PACIFICA_API_CONFIG_KEY=" in content:
+            lines = content.splitlines()
+            new_lines = [
+                f"PACIFICA_API_CONFIG_KEY={api_key}" if l.startswith("PACIFICA_API_CONFIG_KEY=") else l
+                for l in lines
+            ]
+            content = "\n".join(new_lines)
+        else:
+            content += f"\nPACIFICA_API_CONFIG_KEY={api_key}\n"
+        with open(env_path, "w") as f:
+            f.write(content)
+        log.info("API Config Key saved to .env")
+    except Exception as exc:
+        log.warning("Could not persist API key to .env: %s", exc)
+
+    return {"api_key": api_key, "saved": True}

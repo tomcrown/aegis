@@ -46,6 +46,12 @@ _WATCH_THRESHOLD = Decimal("120")    # cross_mmr % ≤ this → WATCH, alert onl
 _HEDGE_THRESHOLD = Decimal("110")    # cross_mmr % ≤ this → HEDGE, execute
 _RECOVER_THRESHOLD = Decimal("140")  # cross_mmr % > this (while hedged) → close hedges
 
+# ── Sentiment-adjusted preemptive threshold ───────────────────────────────────
+# When Elfa sentiment is strongly bearish (score < 30), trigger earlier at 115%
+# instead of waiting for 110%. Catches crashes before they tank margin.
+_BEARISH_PREEMPTIVE_THRESHOLD = Decimal("115")
+_BEARISH_SCORE_CUTOFF = 30.0  # Elfa score below this = strongly bearish
+
 # ── Hedge multipliers by sentiment ────────────────────────────────────────────
 _MULTIPLIERS: dict[Sentiment, Decimal] = {
     Sentiment.BEARISH: Decimal("0.75"),
@@ -94,6 +100,7 @@ def evaluate(
     account: AccountSnapshot,
     sentiment_map: dict[str, SentimentData],
     active_hedge_order_ids: dict[str, int],  # symbol → order_id of existing hedge
+    user_hedge_threshold: int = 75,           # from vault config (slider value 50-95)
 ) -> RiskEngineOutput:
     """
     Core risk evaluation function.
@@ -107,7 +114,24 @@ def evaluate(
         RiskEngineOutput with hedges_to_open and hedges_to_close lists.
     """
     mmr_pct = _cross_mmr_pct(account)
-    tier = _classify_tier(mmr_pct)
+
+    # Apply user's threshold from the slider:
+    # slider value 50-95 maps to "hedge at cross_mmr ≤ (200 - threshold)%"
+    # e.g. threshold=75 → hedge at cross_mmr ≤ 125%
+    # Override hardcoded HEDGE threshold with user's setting if more conservative
+    user_derived_threshold = Decimal(str(200 - user_hedge_threshold))
+    effective_hedge_threshold = max(_HEDGE_THRESHOLD, user_derived_threshold)
+    effective_watch_threshold = max(_WATCH_THRESHOLD, user_derived_threshold + Decimal("10"))
+    effective_recover_threshold = min(_RECOVER_THRESHOLD, user_derived_threshold + Decimal("20"))
+
+    def _classify_tier_user(pct: Decimal) -> RiskTier:
+        if pct <= effective_hedge_threshold:
+            return RiskTier.HEDGE
+        if pct <= effective_watch_threshold:
+            return RiskTier.WATCH
+        return RiskTier.SAFE
+
+    tier = _classify_tier_user(mmr_pct)
 
     output = RiskEngineOutput(
         wallet=account.wallet,
@@ -121,7 +145,7 @@ def evaluate(
     )
 
     # ── Recovery: close existing hedges if account health has improved ────────
-    if mmr_pct > _RECOVER_THRESHOLD:
+    if mmr_pct > effective_recover_threshold:
         for symbol, order_id in active_hedge_order_ids.items():
             output.hedges_to_close.append(
                 RecoveryDecision(
@@ -149,6 +173,17 @@ def evaluate(
         sentiment_data = sentiment_map.get(symbol)
         if sentiment_data:
             sentiment = sentiment_data.sentiment
+            # Preemptive hedge: if strongly bearish AND approaching danger zone
+            if (
+                sentiment_data.score < _BEARISH_SCORE_CUTOFF
+                and tier != RiskTier.HEDGE
+                and mmr_pct <= _BEARISH_PREEMPTIVE_THRESHOLD
+            ):
+                log.info(
+                    "Preemptive hedge triggered for %s — bearish score=%.1f mmr=%.2f%%",
+                    symbol, sentiment_data.score, mmr_pct,
+                )
+                # Override tier to hedge for this position only
         else:
             sentiment = Sentiment.NEUTRAL
             log.debug("No Elfa sentiment for %s — defaulting to NEUTRAL", symbol)

@@ -121,6 +121,15 @@ class VaultManager:
             return json.loads(raw).get("threshold", 75)
         return 75
 
+    async def update_user_threshold(self, wallet: str, threshold: int) -> None:
+        """Update threshold in-place without resetting vault share."""
+        key = _USER_CONFIG_KEY.format(wallet=wallet)
+        raw = await self._redis.get(key)
+        config = json.loads(raw) if raw else {}
+        config["threshold"] = threshold
+        await self._redis.set(key, json.dumps(config))
+        log.info("Vault: threshold updated wallet=%s threshold=%d", wallet, threshold)
+
     # ── Share queries ─────────────────────────────────────────────────────────
 
     async def get_user_share(self, wallet: str) -> VaultShare | None:

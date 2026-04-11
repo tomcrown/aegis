@@ -2,24 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
+@layer base {
+  :root { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: #07090F;
+    color: #E2E8F0;
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #07090F; }
+  ::-webkit-scrollbar-thumb { background: #1C2333; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #242D42; }
+
+  ::selection { background: rgba(79,142,247,0.25); color: #E2E8F0; }
 }
 
-body {
-  @apply bg-aegis-bg text-white font-sans;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+@layer components {
+  .card {
+    @apply rounded-xl border border-aegis-border bg-aegis-surface;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-aegis-border2;
+  }
+  .btn-primary {
+    @apply rounded-xl bg-aegis-accent px-6 py-3 font-display font-semibold text-white
+           transition-all duration-150 hover:bg-aegis-accent-dim active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-secondary {
+    @apply rounded-xl border border-aegis-border bg-aegis-surface2 px-6 py-3
+           font-display font-semibold text-aegis-text transition-all duration-150
+           hover:border-aegis-border2 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-danger {
+    @apply rounded-xl border border-aegis-red/30 bg-aegis-red/10 px-6 py-3
+           font-display font-semibold text-aegis-red transition-all duration-150
+           hover:bg-aegis-red/20 active:scale-[0.98];
+  }
+  .label { @apply text-[10px] font-medium uppercase tracking-widest text-aegis-muted; }
+  .section-title { @apply font-display text-[11px] font-semibold uppercase tracking-widest text-aegis-muted; }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-aegis-surface;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-aegis-border rounded-full;
+  /* Glowing status dots */
+  .dot-green { @apply h-1.5 w-1.5 rounded-full bg-aegis-green; box-shadow: 0 0 6px rgba(34,197,94,0.8); }
+  .dot-amber { @apply h-1.5 w-1.5 rounded-full bg-aegis-amber; box-shadow: 0 0 6px rgba(245,158,11,0.8); }
+  .dot-red   { @apply h-1.5 w-1.5 rounded-full bg-aegis-red;   box-shadow: 0 0 6px rgba(239,68,68,0.8); }
+  .dot-blue  { @apply h-1.5 w-1.5 rounded-full bg-aegis-accent; box-shadow: 0 0 6px rgba(79,142,247,0.8); }
+
+  /* Animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+  .delay-700 { animation-delay: 700ms; }
+  .delay-800 { animation-delay: 800ms; }
 }

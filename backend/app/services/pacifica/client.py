@@ -100,7 +100,9 @@ class PacificaClient:
 
                 if resp.status_code >= 500:
                     wait = _backoff(attempt)
-                    log.warning(
+                    # Only warn on first attempt — subsequent retries are debug
+                    _log = log.warning if attempt == 0 else log.debug
+                    _log(
                         "Pacifica 5xx on %s (attempt %d/%d) — retrying in %.2fs",
                         path, attempt + 1, _MAX_RETRIES, wait,
                     )

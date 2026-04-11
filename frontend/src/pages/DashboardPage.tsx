@@ -1,17 +1,12 @@
 /**
- * Main authenticated view — full dashboard.
- * Tabs: Dashboard | Vault
+ * Main authenticated shell — multi-page navigation.
+ * Pages: Overview | Protection | Intelligence | Vault
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 
-import { DevModeToggle } from "@/components/dashboard/DevModeToggle";
-import { HealthMeter } from "@/components/dashboard/HealthMeter";
-import { PositionsTable } from "@/components/dashboard/PositionsTable";
-import { SentimentPanel } from "@/components/dashboard/SentimentPanel";
-import { AgentKeyPanel } from "@/components/dashboard/AgentKeyPanel";
-import { VaultDashboard } from "@/components/vault/VaultDashboard";
+import { AppNav, type AppPage } from "@/components/layout/AppNav";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useAegisWebSocket } from "@/hooks/useAegisWebSocket";
 import { useDevModeSimulation } from "@/hooks/useDevModeSimulation";
@@ -20,34 +15,34 @@ import { useAegisStore } from "@/stores/useAegisStore";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { accountApi, onboardingApi } from "@/services/api";
 
-type Tab = "dashboard" | "vault";
+import OverviewPage from "@/pages/OverviewPage";
+import ProtectionPage from "@/pages/ProtectionPage";
+import IntelligencePage from "@/pages/IntelligencePage";
+import VaultPage from "@/pages/VaultPage";
 
 export default function DashboardPage() {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [page, setPage] = useState<AppPage>("overview");
   const [onboarded, setOnboarded] = useState(
     () => localStorage.getItem("aegis:onboarded") === "true"
   );
 
-  const { logout } = usePrivy();
+  usePrivy();
   const { address } = useSolanaWallet();
   const walletAddress = address || null;
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
   const setPositions = useAegisStore((s) => s.setPositions);
 
-  // Register hooks
   useAegisWebSocket(walletAddress);
   useDevModeSimulation();
   useWsEventNotifications();
 
-  // Fetch agent public key for onboarding flow
   const { data: agentKeyInfo } = useQuery({
     queryKey: ["agent-key-info"],
     queryFn: () => onboardingApi.getAgentKeyInfo(),
-    staleTime: Infinity, // never changes
+    staleTime: Infinity,
   });
 
-  // Bootstrap: load initial Aegis status
   useQuery({
     queryKey: ["aegis-status", walletAddress],
     queryFn: async () => {
@@ -59,7 +54,6 @@ export default function DashboardPage() {
     enabled: !!walletAddress && onboarded,
   });
 
-  // Bootstrap: load initial positions into store
   useQuery({
     queryKey: ["positions-bootstrap", walletAddress],
     queryFn: async () => {
@@ -83,59 +77,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-aegis-bg">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-aegis-border bg-aegis-bg/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-4">
-            <span className="text-xl font-bold text-aegis-accent">Aegis</span>
-            {/* Tab navigation */}
-            <nav className="flex gap-1">
-              {(["dashboard", "vault"] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                    tab === t
-                      ? "bg-aegis-surface text-white"
-                      : "text-aegis-muted hover:text-white"
-                  }`}
-                >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
-            <DevModeToggle />
-            <button
-              onClick={() => void logout()}
-              className="text-xs text-aegis-muted hover:text-white"
-            >
-              Disconnect
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppNav page={page} onNavigate={setPage} />
 
-      {/* Main content */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        {tab === "dashboard" && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Left column: Health meter */}
-            <div className="space-y-4">
-              <HealthMeter />
-              <AgentKeyPanel />
-            </div>
-
-            {/* Right two columns: Positions + Sentiment */}
-            <div className="space-y-4 lg:col-span-2">
-              <SentimentPanel />
-              <PositionsTable />
-            </div>
-          </div>
-        )}
-
-        {tab === "vault" && <VaultDashboard />}
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        {page === "overview"     && <OverviewPage />}
+        {page === "protection"   && <ProtectionPage />}
+        {page === "intelligence" && <IntelligencePage />}
+        {page === "vault"        && <VaultPage />}
       </main>
     </div>
   );

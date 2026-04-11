@@ -74,7 +74,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from app.api.routes import account, builder, health, onboarding, vault, sentiment
+    from app.api.routes import account, builder, health, intelligence, onboarding, vault, sentiment
     from app.api.websocket import events
     from app.core.middleware import (
         RequestLoggingMiddleware,
@@ -96,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(vault.router, prefix="/api/v1/vault", tags=["vault"])
     app.include_router(builder.router, prefix="/api/v1/builder", tags=["builder"])
     app.include_router(sentiment.router, prefix="/api/v1/sentiment", tags=["sentiment"])
+    app.include_router(intelligence.router, prefix="/api/v1/intelligence", tags=["intelligence"])
     app.include_router(events.router, prefix="/ws", tags=["websocket"])
 
     return app

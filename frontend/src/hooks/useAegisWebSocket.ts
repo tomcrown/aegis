@@ -36,6 +36,7 @@ export function useAegisWebSocket(wallet: string | null): void {
   const mountedRef = useRef(true);
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
+  const addActivity = useAegisStore((s) => s.addActivity);
   const devModeRef = useRef(false);
   // Keep a ref so the WS message handler (closed over in useEffect) sees live value
   const devModeEnabled = useAegisStore((s) => s.devMode.enabled);
@@ -102,8 +103,12 @@ export function useAegisWebSocket(wallet: string | null): void {
         case "hedge_opened":
         case "hedge_closed":
         case "alert":
-          // Events are dispatched to a custom event bus for toast/notification
-          // components to pick up without creating store coupling.
+          addActivity({
+            id: crypto.randomUUID(),
+            type: event.type,
+            timestamp_ms: event.timestamp_ms,
+            payload: event.payload,
+          });
           window.dispatchEvent(
             new CustomEvent("aegis:ws-event", { detail: event })
           );
@@ -126,5 +131,5 @@ export function useAegisWebSocket(wallet: string | null): void {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       wsRef.current?.close();
     };
-  }, [wallet, setRiskState]);
+  }, [wallet, setRiskState, addActivity]);
 }

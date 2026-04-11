@@ -1,13 +1,10 @@
 /**
  * Typed API service layer — all backend calls go through here.
- * No raw fetch() calls in components or hooks.
- *
- * All Pacifica decimal values arrive as strings and stay as strings
- * until the rendering layer formats them for display.
  */
 
 import type {
   AccountInfo,
+  IntelligenceSnapshot,
   Position,
   SentimentData,
   VaultShare,
@@ -26,20 +23,15 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-
   if (!resp.ok) {
     const body = await resp.text().catch(() => resp.statusText);
     throw new ApiError(resp.status, body);
   }
-
   return resp.json() as Promise<T>;
 }
 
@@ -51,6 +43,11 @@ export const accountApi = {
 
   getPositions: (wallet: string) =>
     request<Position[]>(`/api/v1/account/positions?wallet=${encodeURIComponent(wallet)}`),
+
+  getSparkline: (wallet: string) =>
+    request<{ wallet: string; values: number[] }>(
+      `/api/v1/account/aegis/sparkline?wallet=${encodeURIComponent(wallet)}`
+    ),
 
   getAegisStatus: (wallet: string) =>
     request<{ wallet: string; active: boolean; threshold: number }>(
@@ -74,6 +71,21 @@ export const accountApi = {
     request<{ status: string }>(`/api/v1/account/aegis/deactivate?wallet=${encodeURIComponent(wallet)}`, {
       method: "POST",
     }),
+
+  createApiConfigKey: (payload: { account: string; signature: string; timestamp: number; expiry_window: number }) =>
+    request<{ api_key: string; saved: boolean }>(
+      "/api/v1/account/aegis/api-config-key",
+      { method: "POST", body: JSON.stringify(payload) }
+    ),
+
+  updateThreshold: (wallet: string, threshold: number) =>
+    request<{ wallet: string; threshold: number }>(
+      "/api/v1/account/aegis/threshold",
+      {
+        method: "PATCH",
+        body: JSON.stringify({ wallet, threshold }),
+      }
+    ),
 
   demoTriggerHedge: (wallet: string) =>
     request<{ triggered: boolean; symbol: string; side: string; amount: string; order_id: number }>(
@@ -105,6 +117,41 @@ export const builderApi = {
 export const sentimentApi = {
   get: (symbol: string) =>
     request<SentimentData>(`/api/v1/sentiment/${encodeURIComponent(symbol.toUpperCase())}`),
+};
+
+// ── Intelligence ──────────────────────────────────────────────────────────────
+
+export const intelligenceApi = {
+  getSnapshot: (wallet: string) =>
+    request<IntelligenceSnapshot>(
+      `/api/v1/intelligence/snapshot?wallet=${encodeURIComponent(wallet)}`
+    ),
+
+  getNarratives: () =>
+    request<{ narratives: unknown[] }>("/api/v1/intelligence/narratives"),
+
+  getMacro: () =>
+    request<{ context: string }>("/api/v1/intelligence/macro"),
+
+  getTrendingCAs: (platform: "twitter" | "telegram" = "twitter") =>
+    request<{ platform: string; tokens: unknown[] }>(
+      `/api/v1/intelligence/trending-cas?platform=${platform}`
+    ),
+
+  getTokenNews: (symbol: string) =>
+    request<{ symbol: string; news: unknown[] }>(
+      `/api/v1/intelligence/news?symbol=${encodeURIComponent(symbol.toUpperCase())}`
+    ),
+
+  getSentimentHistory: (symbol: string) =>
+    request<{ symbol: string; scores: number[] }>(
+      `/api/v1/intelligence/sentiment-history?symbol=${encodeURIComponent(symbol.toUpperCase())}`
+    ),
+
+  getCrashCheck: (symbol: string) =>
+    request<{ symbol: string; alert: boolean; keywords_hit: string[]; mention_count: number }>(
+      `/api/v1/intelligence/crash-check?symbol=${encodeURIComponent(symbol.toUpperCase())}`
+    ),
 };
 
 // ── Onboarding ────────────────────────────────────────────────────────────────

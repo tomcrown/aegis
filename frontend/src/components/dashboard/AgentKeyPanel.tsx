@@ -1,73 +1,84 @@
 /**
- * Agent Key info panel — the trust center.
- * Shows what the Agent Key CAN do and explicitly what it CANNOT do.
+ * Agent Key security panel — compact trust center.
  */
-
 import { useQuery } from "@tanstack/react-query";
 import { onboardingApi } from "@/services/api";
 
-function truncate(key: string, chars = 8): string {
-  if (key.length <= chars * 2 + 3) return key;
-  return `${key.slice(0, chars)}...${key.slice(-chars)}`;
+function truncate(key: string, chars = 10) {
+  return key.length <= chars * 2 + 3 ? key : `${key.slice(0, chars)}...${key.slice(-chars)}`;
 }
 
 export function AgentKeyPanel() {
-  const { data: agentKeyInfo, isLoading } = useQuery({
+  const { data: info, isLoading } = useQuery({
     queryKey: ["agent-key-info"],
     queryFn: onboardingApi.getAgentKeyInfo,
-    staleTime: Infinity, // never changes during runtime
+    staleTime: Infinity,
   });
 
   return (
-    <div className="rounded-xl border border-aegis-border bg-aegis-surface p-4">
-      <h2 className="mb-3 text-sm font-semibold text-white">
-        Agent Key — Security
-      </h2>
+    <div className="card animate-fade-in delay-300" style={{ animationFillMode: "backwards" }}>
+      <div className="flex items-center gap-2 border-b border-aegis-border px-5 py-3.5">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1L2 4V8C2 11.3 4.7 14.4 8 15C11.3 14.4 14 11.3 14 8V4L8 1Z"
+            stroke="#4F8EF7" strokeWidth="1.5" fill="none" />
+          <path d="M5.5 8L7 9.5L10.5 6" stroke="#4F8EF7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <h2 className="font-display text-sm font-semibold text-aegis-text">Agent Key</h2>
+      </div>
 
       {isLoading ? (
-        <div className="h-24 animate-pulse rounded-lg bg-aegis-border" />
-      ) : agentKeyInfo ? (
-        <div className="space-y-3">
-          {/* Public key */}
-          <div className="rounded-lg bg-aegis-bg p-3">
-            <p className="mb-1 text-xs text-aegis-muted">Agent Public Key</p>
-            <p className="font-mono text-xs text-white">
-              {truncate(agentKeyInfo.agent_public_key, 12)}
-            </p>
+        <div className="p-4 space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-4 animate-pulse rounded bg-aegis-border" />)}
+        </div>
+      ) : info ? (
+        <div className="p-4 space-y-3">
+          {/* Key display */}
+          <div className="flex items-center gap-2 rounded-lg border border-aegis-border bg-aegis-surface2 px-3 py-2.5">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="4.5" cy="4.5" r="3" stroke="#6B7280" strokeWidth="1" />
+              <path d="M7 7L11 11" stroke="#6B7280" strokeWidth="1" strokeLinecap="round" />
+            </svg>
+            <span className="font-mono text-xs text-aegis-muted flex-1 truncate">
+              {truncate(info.agent_public_key)}
+            </span>
+            <button
+              onClick={() => void navigator.clipboard.writeText(info.agent_public_key)}
+              className="text-[10px] text-aegis-muted hover:text-aegis-text transition"
+              title="Copy full key"
+            >
+              copy
+            </button>
           </div>
 
-          {/* Permissions */}
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-aegis-green">
-              Permitted
-            </p>
-            <ul className="space-y-1">
-              {agentKeyInfo.permissions.map((p) => (
-                <li key={p} className="flex items-center gap-2 text-xs text-aegis-muted">
-                  <span className="text-aegis-green">✓</span>
+          {/* Can / Cannot */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-aegis-green/15 bg-aegis-green/5 p-3">
+              <p className="mb-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-aegis-green">Can</p>
+              {info.permissions.map((p) => (
+                <div key={p} className="flex items-center gap-1.5 text-xs text-aegis-muted">
+                  <span className="text-aegis-green text-[10px]">✓</span>
                   {p.replace(/_/g, " ")}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
+            <div className="rounded-lg border border-aegis-red/15 bg-aegis-red/5 p-3">
+              <p className="mb-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-aegis-red">Cannot</p>
+              {info.cannot_do.slice(0, 3).map((p) => (
+                <div key={p} className="flex items-center gap-1.5 text-xs text-aegis-muted">
+                  <span className="text-aegis-red text-[10px]">✗</span>
+                  {p.replace(/_/g, " ")}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Cannot do */}
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-aegis-red">
-              Cannot do — ever
-            </p>
-            <ul className="space-y-1">
-              {agentKeyInfo.cannot_do.map((p) => (
-                <li key={p} className="flex items-center gap-2 text-xs text-aegis-muted">
-                  <span className="text-aegis-red">✗</span>
-                  {p.replace(/_/g, " ")}
-                </li>
-              ))}
-            </ul>
+          <div className="flex items-center gap-1.5 rounded-md border border-aegis-accent/15 bg-aegis-accent/5 px-3 py-2">
+            <span className="dot-blue" />
+            <span className="font-mono text-[10px] text-aegis-accent">builder_code=AEGIS · Ed25519 signed</span>
           </div>
         </div>
       ) : (
-        <p className="text-xs text-aegis-muted">Unable to load agent key info</p>
+        <div className="p-4 text-xs text-aegis-muted">Unable to load agent key info</div>
       )}
     </div>
   );
