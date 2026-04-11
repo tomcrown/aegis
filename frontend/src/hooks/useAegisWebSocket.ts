@@ -36,6 +36,7 @@ export function useAegisWebSocket(wallet: string | null): void {
   const mountedRef = useRef(true);
 
   const setRiskState = useAegisStore((s) => s.setRiskState);
+  const setMarkPrices = useAegisStore((s) => s.setMarkPrices);
   const addActivity = useAegisStore((s) => s.addActivity);
   const devModeRef = useRef(false);
   // Keep a ref so the WS message handler (closed over in useEffect) sees live value
@@ -90,14 +91,16 @@ export function useAegisWebSocket(wallet: string | null): void {
           const payload = event.payload as {
             cross_mmr_pct: number;
             risk_tier: RiskTier;
+            mark_prices?: Record<string, number>;
           };
-          // Pacifica cross_mmr > 100% = safe, 100% = liquidation.
-          // Normalize to 0-100 danger scale: 200%-safe = 0, 100%-liq = 100.
           const dangerPct = Math.max(0, Math.min(100, 200 - payload.cross_mmr_pct));
           setRiskState({
             crossMmrPct: dangerPct,
             tier: payload.risk_tier,
           });
+          if (payload.mark_prices && Object.keys(payload.mark_prices).length > 0) {
+            setMarkPrices(payload.mark_prices);
+          }
           break;
         }
         case "hedge_opened":
@@ -131,5 +134,5 @@ export function useAegisWebSocket(wallet: string | null): void {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       wsRef.current?.close();
     };
-  }, [wallet, setRiskState, addActivity]);
+  }, [wallet, setRiskState, setMarkPrices, addActivity]);
 }

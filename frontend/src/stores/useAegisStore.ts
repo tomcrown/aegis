@@ -14,6 +14,10 @@ interface AegisStore {
   sentimentMap: Record<string, SentimentData>;
   setSentiment: (s: SentimentData) => void;
 
+  // Live mark prices from WS — symbol → price
+  markPrices: Record<string, number>;
+  setMarkPrices: (p: Record<string, number>) => void;
+
   // Activity log — last 50 WS events for Protection page history
   activityLog: ActivityEvent[];
   addActivity: (e: ActivityEvent) => void;
@@ -40,6 +44,10 @@ export const useAegisStore = create<AegisStore>((set) => ({
     set((prev) => ({
       sentimentMap: { ...prev.sentimentMap, [s.symbol]: s },
     })),
+
+  markPrices: {},
+  setMarkPrices: (p) =>
+    set((prev) => ({ markPrices: { ...prev.markPrices, ...p } })),
 
   activityLog: [],
   addActivity: (e) =>

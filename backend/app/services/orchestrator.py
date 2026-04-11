@@ -245,6 +245,13 @@ class Orchestrator:
             })
             return
 
+        # Pacifica sometimes returns cross_mmr="0" while positions exist — bad data.
+        # A real 0% cross_mmr would already be liquidated. Treat as stale and skip.
+        raw_mmr = float(account_info.cross_mmr) if account_info.cross_mmr else 0.0
+        if raw_mmr == 0.0 and positions:
+            log.debug("cross_mmr=0 with active positions for %s — Pacifica data not ready, skipping cycle", wallet)
+            return
+
         snapshot = AccountSnapshot(
             wallet=wallet,
             cross_mmr=account_info.cross_mmr,
@@ -270,6 +277,16 @@ class Orchestrator:
         await self._redis.ltrim(spark_key, 0, 59)
         await self._redis.expire(spark_key, 300)
 
+        # Fetch live mark prices for all positions (non-blocking best-effort)
+        mark_prices: dict[str, float] = {}
+        for pos in positions:
+            try:
+                mp = await self._ws_monitor.get_mark_price(pos.symbol)
+                if mp:
+                    mark_prices[pos.symbol] = float(mp)
+            except Exception:
+                pass
+
         # Push mmr_update to frontend
         await ws_manager.broadcast(wallet, {
             "type": "mmr_update",
@@ -279,6 +296,7 @@ class Orchestrator:
                 "cross_mmr_pct": cross_mmr_pct,
                 "risk_tier": output.risk_tier.value,
                 "cross_mmr": account_info.cross_mmr,
+                "mark_prices": mark_prices,
             },
         })
 

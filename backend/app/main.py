@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Bootstrap Agent Key (load from Redis or env on first run)
     await bootstrap_agent_key(redis)
 
-    pacifica = PacificaClient()
+    pacifica = PacificaClient(redis=redis)
     vault = VaultManager(redis=redis)
     orchestrator = Orchestrator(redis=redis, pacifica=pacifica, vault=vault)
 

@@ -7,13 +7,19 @@ Design decisions:
 - 429 rate-limit handled: wait Retry-After header seconds, then retry
 - All response parsing uses Pydantic models — no raw dict access in callers
 - builder_code is NEVER a parameter — it is injected by signing helpers
+- Redis read-through cache on /account and /positions (2s TTL) to avoid
+  hammering Pacifica at 500ms risk loop cadence
 """
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import redis.asyncio as aioredis
 
 import httpx
 
@@ -55,9 +61,10 @@ class PacificaClient:
     Instantiate once; call close() during app shutdown.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, redis: "aioredis.Redis | None" = None) -> None:
         settings = get_settings()
         self._base = settings.pacifica_rest_url.rstrip("/")
+        self._redis = redis
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if settings.pacifica_api_config_key:
             headers["PF-API-KEY"] = settings.pacifica_api_config_key
@@ -100,7 +107,6 @@ class PacificaClient:
 
                 if resp.status_code >= 500:
                     wait = _backoff(attempt)
-                    # Only warn on first attempt — subsequent retries are debug
                     _log = log.warning if attempt == 0 else log.debug
                     _log(
                         "Pacifica 5xx on %s (attempt %d/%d) — retrying in %.2fs",
@@ -138,15 +144,53 @@ class PacificaClient:
             return raw.get("data")
         return raw
 
+    # ── Cache helper ──────────────────────────────────────────────────────────
+
+    async def _cached_get(
+        self,
+        cache_key: str,
+        ttl_s: int,
+        path: str,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """
+        GET with Redis read-through cache.
+        - On cache hit: returns parsed JSON immediately, no Pacifica call.
+        - On cache miss: fetches from Pacifica, stores result, returns it.
+        - Falls back to direct Pacifica call if Redis is unavailable.
+        """
+        if self._redis:
+            cached = await self._redis.get(cache_key)
+            if cached:
+                log.debug("Cache hit: %s", cache_key)
+                return json.loads(cached)
+
+        result = await self._get(path, params=params)
+
+        if self._redis and result is not None:
+            await self._redis.setex(cache_key, ttl_s, json.dumps(result))
+
+        return result
+
     # ── Account ───────────────────────────────────────────────────────────────
 
     async def get_account_info(self, wallet: str) -> AccountInfo:
-        raw = await self._get("/account", params={"account": wallet})
+        raw = await self._cached_get(
+            cache_key=f"aegis:cache:account:{wallet}",
+            ttl_s=2,
+            path="/account",
+            params={"account": wallet},
+        )
         log.debug("raw account response: %s", raw)
         return AccountInfo.model_validate(self._unwrap(raw))
 
     async def get_positions(self, wallet: str) -> list[Position]:
-        raw = await self._get("/positions", params={"account": wallet})
+        raw = await self._cached_get(
+            cache_key=f"aegis:cache:positions:{wallet}",
+            ttl_s=2,
+            path="/positions",
+            params={"account": wallet},
+        )
         data = self._unwrap(raw)
         if isinstance(data, list):
             return [Position.model_validate(p) for p in data]

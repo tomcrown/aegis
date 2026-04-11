@@ -20,6 +20,7 @@ export interface Position {
   side: "long" | "short";
   amount: string;
   entry_price: string;
+  liquidation_price: string | null;
   margin: string;
   funding: string;
   isolated: boolean;
@@ -125,7 +126,11 @@ export interface VaultShare {
 
 // ── WebSocket events ──────────────────────────────────────────────────────────
 
-export type WsEventType = "mmr_update" | "hedge_opened" | "hedge_closed" | "alert";
+export type WsEventType =
+  | "mmr_update"
+  | "hedge_opened"
+  | "hedge_closed"
+  | "alert";
 
 export interface WsEvent {
   type: WsEventType;
