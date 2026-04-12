@@ -226,6 +226,24 @@ class PacificaClient:
         log.debug("create_market_order raw response: %s", raw)
         return OrderResponse.model_validate(self._unwrap(raw))
 
+        
+    async def get_open_order_ids(self, wallet: str) -> set[int] | None:
+        """
+        Return the set of currently open order IDs for a wallet.
+        Used to detect stale hedge records in Redis that no longer exist on Pacifica.
+        Returns None on any error (fail-safe — don't clear hedges if unsure).
+        Returns an empty set if the call succeeded but no orders are open.
+        """
+        try:
+            raw = await self._get("/orders", params={"account": wallet})
+            data = self._unwrap(raw)
+            if isinstance(data, list):
+                return {int(o["order_id"]) for o in data if "order_id" in o}
+            return set()  # ← inside try: Pacifica succeeded but data wasn't a list
+        except Exception as exc:
+            log.debug("get_open_order_ids failed for %s: %s", wallet, exc)
+            return None  # ← inside except: unknown state — don't touch hedges
+
     async def cancel_order(self, payload: dict[str, Any]) -> CancelOrderResponse:
         """Submit a pre-signed cancel_order payload."""
         raw = await self._post("/orders/cancel", payload)
