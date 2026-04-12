@@ -142,14 +142,19 @@ class VaultManager:
         tvl = await self._redis.get(_TVL_KEY) or "0"
         active_count = await self._redis.scard(_USERS_ACTIVE_KEY)
 
-        # Count active hedges by scanning hedge keys
-        hedge_keys = await self._redis.keys("aegis:vault:hedges:*")
-        active_protections = len(hedge_keys)
+        # Sum active_hedges across all user shares — more reliable than key scan
+        active_protections = 0
+        wallets = await self._redis.smembers(_USERS_ACTIVE_KEY)
+        for wallet in wallets:
+            raw = await self._redis.get(_SHARE_KEY.format(wallet=wallet))
+            if raw:
+                share = VaultShare.model_validate_json(raw)
+                active_protections += share.active_hedges
 
         return VaultState(
             total_tvl=tvl,
             active_protections=active_protections,
-            total_yield_distributed="0",   # TODO: implement yield tracking
+            total_yield_distributed="0",
             user_count=active_count,
         )
 
