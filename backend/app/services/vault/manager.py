@@ -160,7 +160,11 @@ class VaultManager:
     ) -> None:
         """Record an active hedge order in Redis."""
         key = _HEDGE_KEY.format(wallet=wallet, symbol=symbol)
-        await self._redis.set(key, str(order_id))
+        # Store as JSON with timestamp so stale check can respect grace period
+        await self._redis.set(key, json.dumps({
+            "order_id": order_id,
+            "placed_at": int(time.time()),
+        }))
 
         # Increment active hedges on user share
         raw = await self._redis.get(_SHARE_KEY.format(wallet=wallet))
@@ -172,16 +176,22 @@ class VaultManager:
         log.info("Vault: hedge recorded wallet=%s symbol=%s order_id=%d", wallet, symbol, order_id)
 
     async def get_active_hedges(self, wallet: str) -> dict[str, int]:
-        """Return {symbol: order_id} for all active hedges for this wallet."""
         pattern = _HEDGE_KEY.format(wallet=wallet, symbol="*")
         keys = await self._redis.keys(pattern)
         result: dict[str, int] = {}
         for key in keys:
-            # key format: aegis:vault:hedges:{wallet}:{symbol}
             symbol = key.split(":")[-1]
-            order_id_str = await self._redis.get(key)
-            if order_id_str:
-                result[symbol] = int(order_id_str)
+            raw = await self._redis.get(key)
+            if raw:
+                try:
+                    data = json.loads(raw)
+                    # Support both old format (plain int string) and new format (JSON)
+                    if isinstance(data, dict):
+                        result[symbol] = data["order_id"]
+                    else:
+                        result[symbol] = int(raw)
+                except Exception:
+                    pass
         return result
 
     async def clear_hedge(self, wallet: str, symbol: str) -> None:

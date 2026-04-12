@@ -21,11 +21,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import json
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import redis.asyncio as aioredis
+
+import redis.asyncio as aioredis
 
 from app.api.websocket.events import manager as ws_manager
 from app.models.pacifica import AccountSnapshot
@@ -37,12 +38,20 @@ from app.services.pacifica.ws_monitor import PacificaWsMonitor
 from app.services.risk import engine as risk_engine
 from app.services.vault.manager import VaultManager
 
+from app.models.risk import SentimentData  # add to imports at top
+
+from decimal import Decimal
+
+
+
 log = logging.getLogger(__name__)
 
 _RISK_POLL_INTERVAL_S = 1.5     # 1500ms — stays under 300 credits/60s with API config key
 _ELFA_POLL_INTERVAL_S = 60.0    # 60s sentiment refresh
 _MACRO_POLL_INTERVAL_S = 1800.0 # 30 min macro context
 _CRASH_CHECK_INTERVAL_S = 300.0 # 5 min crash keyword check
+_HEDGE_STALE_GRACE_S = 60  # don't clear a hedge placed less than 60s ago
+_MIN_HEDGE_NOTIONAL_USD = Decimal("10.00") 
 
 
 class Orchestrator:
@@ -54,18 +63,18 @@ class Orchestrator:
 
     def __init__(
         self,
-        redis: "aioredis.Redis",
+        redis: aioredis.Redis,
         pacifica: PacificaClient,
         vault: VaultManager,
     ) -> None:
-        self._redis = redis
+        self._redis: aioredis.Redis = redis
         self._pacifica = pacifica
         self._vault = vault
         self._elfa = ElfaClient(redis=redis)
         self._ws_monitor = PacificaWsMonitor(redis=redis)
         self._execution = ExecutionEngine(pacifica=pacifica)
         self._tasks: list[asyncio.Task] = []
-        self._sentiment_cache: dict[str, object] = {}
+        self._sentiment_cache: dict[str, SentimentData] = {}
         # Cache last good account info per wallet — used as fallback during Pacifica 5xx
         self._account_cache: dict[str, object] = {}
         self._consecutive_failures: dict[str, int] = {}
@@ -297,11 +306,31 @@ class Orchestrator:
         # Aegis knowing. If a Redis record points to a non-existent order, the
         # risk engine thinks the position is hedged and never opens a new one.
         # Fix: check live open orders and purge any Redis records not found there.
+        
         if active_hedges:
             try:
                 open_order_ids = await self._pacifica.get_open_order_ids(wallet)
+                now = int(time.time())
                 for symbol, order_id in list(active_hedges.items()):
-                     if open_order_ids is not None and order_id not in open_order_ids:
+                    if open_order_ids is not None and order_id not in open_order_ids:
+                        # Check placement time — don't clear recently placed hedges
+                        hedge_key = f"aegis:vault:hedges:{wallet}:{symbol}"
+                        raw = await self._redis.get(hedge_key)
+                        placed_at = 0
+                        if raw:
+                            try:
+                                data = json.loads(raw)
+                                placed_at = data.get("placed_at", 0) if isinstance(data, dict) else 0
+                            except Exception:
+                                pass
+                        
+                        if now - placed_at < _HEDGE_STALE_GRACE_S:
+                            log.debug(
+                                "Hedge %d for %s/%s not in open orders but placed %ds ago — skipping stale clear",
+                                order_id, wallet, symbol, now - placed_at,
+                            )
+                            continue
+
                         log.info(
                             "Stale hedge detected: wallet=%s symbol=%s order_id=%d not in open orders — clearing",
                             wallet, symbol, order_id,
@@ -343,6 +372,19 @@ class Orchestrator:
         for hedge in output.hedges_to_open:
             try:
                 mark_price = await self._ws_monitor.get_mark_price(hedge.symbol)
+
+                # Guard: skip if USD notional is below Pacifica's minimum
+                if mark_price:
+                    notional = Decimal(hedge.hedge_amount) * Decimal(mark_price)
+                    if notional < _MIN_HEDGE_NOTIONAL_USD:
+                        log.warning(
+                            "Hedge for %s/%s skipped — notional $%.2f below Pacifica minimum $%s "
+                            "(amount=%s mark=%s)",
+                            wallet, hedge.symbol, notional, _MIN_HEDGE_NOTIONAL_USD,
+                            hedge.hedge_amount, mark_price,
+                        )
+                        continue
+
                 order = await self._execution.open_hedge(hedge, mark_price=mark_price)
                 await self._vault.record_hedge(wallet, hedge.symbol, order.order_id)
 

@@ -60,7 +60,7 @@ _MULTIPLIERS: dict[Sentiment, Decimal] = {
 }
 
 # ── Minimum hedge size (avoid dust orders) ────────────────────────────────────
-_MIN_HEDGE_AMOUNT = Decimal("0.001")
+_MIN_HEDGE_AMOUNT = Decimal("0.01") 
 
 
 def _cross_mmr_pct(account: AccountSnapshot) -> Decimal:
@@ -88,13 +88,12 @@ def _compute_hedge_amount(
 ) -> Decimal:
     """
     Compute hedge size = position_amount × multiplier.
-    Rounded down to 8 decimal places to avoid over-hedging.
+    Rounded DOWN to Pacifica's lot size (0.01) to avoid over-hedging
+    and prevent 'not a multiple of lot size' 400 errors.
     """
-    # Round to 0.00001 — Pacifica lot size for most perp markets
     return (to_dec(position_amount) * multiplier).quantize(
-        Decimal("0.00001"), rounding=ROUND_DOWN
+        Decimal("0.01"), rounding=ROUND_DOWN
     )
-
 
 def evaluate(
     account: AccountSnapshot,

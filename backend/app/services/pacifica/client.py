@@ -250,9 +250,10 @@ class PacificaClient:
         log.debug("cancel_order raw response: %s", raw)
         return CancelOrderResponse.model_validate(self._unwrap(raw))
 
+# After
     async def create_stop_order(self, payload: dict[str, Any]) -> OrderResponse:
-        """Submit a pre-signed stop order payload (used for hedge stop-losses)."""
-        if payload.get("builder_code") != "AEGIS":
+        stop_order = payload.get("stop_order", {})
+        if stop_order.get("builder_code") != "AEGIS":
             raise ValueError("create_stop_order called without builder_code='AEGIS'.")
         raw = await self._post("/orders/stop/create", payload)
         log.debug("create_stop_order raw response: %s", raw)
@@ -284,6 +285,7 @@ class PacificaClient:
             "/builder/trades",
             params={"builder_code": builder_code, "limit": limit},
         )
+        
         data = self._unwrap(raw)
         items = data if isinstance(data, list) else []
         return [BuilderTrade.model_validate(t) for t in items]
@@ -295,6 +297,9 @@ class PacificaClient:
         )
         data = self._unwrap(raw)
         return data if isinstance(data, list) else []
+    
+    
+    
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 

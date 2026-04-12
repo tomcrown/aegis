@@ -94,53 +94,9 @@ class ExecutionEngine:
 
         return response
 
-    async def _place_hedge_stop_loss(
-        self,
-        decision: HedgeDecision,
-        mark_price: str,
-        agent_wallet: str,
-        keypair: object,
-    ) -> None:
-        """
-        Place a stop-loss order on the hedge position to limit downside.
-        Stop price is 3% adverse from the current mark price.
-
-        For a short hedge: stop triggers if price rises 3% (adverse for a short)
-        For a long hedge:  stop triggers if price falls 3%
-        """
-        price = to_dec(mark_price)
-        if decision.hedge_side == "ask":  # short hedge → stop if price rises
-            stop_price = price * (Decimal("1") + _STOP_LOSS_BUFFER_PCT)
-            sl_side = "bid"  # buy back to close the short
-        else:  # long hedge → stop if price falls
-            stop_price = price * (Decimal("1") - _STOP_LOSS_BUFFER_PCT)
-            sl_side = "ask"  # sell to close the long
-
-        sl_payload = build_stop_order_payload(
-            account=decision.wallet,
-            symbol=decision.symbol,
-            side=sl_side,
-            stop_price=to_wire(stop_price),
-            amount=decision.hedge_amount,
-            reduce_only=True,
-            agent_wallet=agent_wallet,
-            builder_code=self._builder_code,
-            keypair=keypair,
-        )
-
-        try:
-            sl_response = await self._pacifica.create_stop_order(sl_payload)
-            log.info(
-                "Hedge stop-loss placed: order_id=%d stop_price=%s",
-                sl_response.order_id,
-                to_wire(stop_price),
-            )
-        except Exception as exc:
-            # Non-fatal: log and continue. The hedge is still open.
-            log.error(
-                "Failed to place stop-loss on hedge for %s/%s: %s",
-                decision.wallet, decision.symbol, exc,
-            )
+    # TODO: Pacifica stop order signing contract unclear — disabled until resolved
+    async def _place_hedge_stop_loss(self, *args, **kwargs) -> None:
+        return
 
     async def close_hedge(self, decision: RecoveryDecision) -> None:
         """

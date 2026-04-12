@@ -81,15 +81,14 @@ class MarketInfo(BaseModel):
 # ── Builder ───────────────────────────────────────────────────────────────────
 
 class BuilderTrade(BaseModel):
+    model_config = ConfigDict(extra="ignore")  # ignore any extra fields
+
     history_id: int
-    order_id: int
+    address: str
     symbol: str
     amount: str
     price: str
-    entry_price: str
-    fee: str
-    pnl: str
-    side: str
+    builder_fee: str
     created_at: int
 
 

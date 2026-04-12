@@ -148,14 +148,6 @@ def build_stop_order_payload(
     builder_code: str,
     keypair: Keypair,
 ) -> dict[str, Any]:
-    """
-    Build and sign a create_stop_order payload.
-
-    Pacifica stop order POST body nests order fields under 'stop_order':
-      {account, agent_wallet, signature, timestamp, expiry_window,
-       stop_order: {symbol, side, stop_price, amount, reduce_only, builder_code}}
-    The signed message data mirrors this nesting.
-    """
     timestamp = int(time.time() * 1000)
 
     header = {
@@ -164,18 +156,25 @@ def build_stop_order_payload(
         "expiry_window": 5_000,
     }
 
-    order_fields = {
-        "symbol": symbol,
-        "side": side,
+    # Per Pacifica docs: symbol, side, reduce_only are TOP LEVEL
+    # stop_order nested object contains: stop_price, amount, client_order_id
+    # builder_code goes inside stop_order (order config object)
+    stop_order = {
         "stop_price": stop_price,
         "amount": amount,
-        "reduce_only": reduce_only,
+        "client_order_id": str(uuid.uuid4()),
         "builder_code": builder_code,
     }
 
-    # Signed message data wraps fields under 'stop_order' (for signature verification)
-    # POST body is flat — same as market order pattern
-    _, signature = sign_message(header, {"stop_order": order_fields}, keypair)
+    # Signed payload mirrors the POST body structure exactly
+    signed_payload = {
+        "symbol": symbol,
+        "side": side,
+        "reduce_only": reduce_only,
+        "stop_order": stop_order,
+    }
+
+    _, signature = sign_message(header, signed_payload, keypair)
 
     return {
         "account": account,
@@ -183,5 +182,8 @@ def build_stop_order_payload(
         "signature": signature,
         "timestamp": timestamp,
         "expiry_window": 5_000,
-        **order_fields,
+        "symbol": symbol,        # top level per docs
+        "side": side,            # top level per docs
+        "reduce_only": reduce_only,  # top level per docs
+        "stop_order": stop_order,    # nested per docs
     }
