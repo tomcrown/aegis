@@ -275,7 +275,10 @@ class Orchestrator:
 
             liq = float(pos.liquidation_price) if pos.liquidation_price else 0.0
             if liq > 0:
-                ratio = (mark / liq) * 100.0
+                if pos.side == "short":
+                    ratio = (liq / mark) * 100.0
+                else:
+                    ratio = (mark / liq) * 100.0
                 synthetic_ratios.append(ratio)
 
         if synthetic_ratios:
