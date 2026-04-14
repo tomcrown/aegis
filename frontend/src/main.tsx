@@ -33,6 +33,8 @@ const queryClient = new QueryClient({
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID as string;
 
+// main.tsx — only the Root function needs to change
+
 function Root() {
   const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
   const wallets = useMemo(
@@ -57,7 +59,9 @@ function Root() {
       }}
     >
       <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
+        <WalletProvider wallets={wallets}>
+          {" "}
+          {/* ← autoConnect removed */}
           <WalletModalProvider>
             <QueryClientProvider client={queryClient}>
               <App />
