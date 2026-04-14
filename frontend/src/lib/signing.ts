@@ -3,8 +3,7 @@
  * Mirrors the backend canonical_json() logic so the frontend produces
  * the same sorted, compact JSON message that Pacifica expects to verify.
  */
-
-type JsonValue =
+export type JsonValue =
   | string
   | number
   | boolean
@@ -20,7 +19,7 @@ function sortRecursive(obj: JsonValue): JsonValue {
     return Object.fromEntries(
       Object.entries(obj)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([k, v]) => [k, sortRecursive(v)])
+        .map(([k, v]) => [k, sortRecursive(v)]),
     ) as { [key: string]: JsonValue };
   }
   return obj;

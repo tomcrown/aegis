@@ -8,6 +8,8 @@ import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { onboardingApi } from "@/services/api";
 import { canonical_json_ts } from "@/lib/signing";
 import { clearReferralCode } from "@/lib/fuul";
+import type { JsonValue } from "@/lib/signing";
+import { useSignMessage } from "@privy-io/react-auth"; // ← add this
 
 const BUILDER_CODE = "AEGIS";
 const MAX_FEE_RATE = "0.0005";
@@ -81,18 +83,27 @@ export function OnboardingFlow({
   const [step, setStep] = useState<Step>("intro");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { address, wallet, signMessage } = useSolanaWallet();
+  const { address, signMessage } = useSolanaWallet();
+  const { signMessage: privySignMessage } = useSignMessage(); // ← Privy v3 hook
 
-  async function sign(payloadToSign: Record<string, unknown>): Promise<string> {
+  async function sign(
+    payloadToSign: Record<string, JsonValue>,
+  ): Promise<string> {
     const message = canonical_json_ts(payloadToSign);
-    const encoded = new TextEncoder().encode(message);
-    const signFn = signMessage ?? wallet?.signMessage?.bind(wallet);
-    if (!signFn) throw new Error("No signing method available");
-    const result = await signFn(encoded);
-    const { default: bs58 } = await import("bs58");
-    return bs58.encode(result);
-  }
 
+    // Path 1: native wallet adapter (Phantom etc.) — signs raw bytes
+    if (signMessage) {
+      const encoded = new TextEncoder().encode(message);
+      const result = await signMessage(encoded);
+      const { default: bs58 } = await import("bs58");
+      return bs58.encode(result);
+    }
+
+    // Path 2: Privy v3 embedded wallet — takes string, returns string signature
+    const { signature } = await privySignMessage({ message });
+    return signature;
+  }
+  // approveBuilderCode and bindAgentKey: cast payload to Record<string, JsonValue>
   async function approveBuilderCode() {
     if (!address) return;
     setLoading(true);
@@ -104,7 +115,7 @@ export function OnboardingFlow({
         expiry_window: EXPIRY_WINDOW,
         timestamp,
         data: { builder_code: BUILDER_CODE, max_fee_rate: MAX_FEE_RATE },
-      });
+      } as Record<string, JsonValue>);
       await onboardingApi.approveBuilderCode({
         account: address,
         signature,
@@ -132,7 +143,7 @@ export function OnboardingFlow({
         expiry_window: EXPIRY_WINDOW,
         timestamp,
         data: { agent_wallet: agentPublicKey },
-      });
+      } as Record<string, JsonValue>);
       await onboardingApi.bindAgentKey({
         account: address,
         signature,
@@ -147,7 +158,6 @@ export function OnboardingFlow({
       setLoading(false);
     }
   }
-
   function completeOnboarding() {
     localStorage.setItem("aegis:onboarded", "true");
     clearReferralCode();

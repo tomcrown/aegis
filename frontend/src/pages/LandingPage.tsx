@@ -3,7 +3,7 @@
  * Hero: animated ring + letter-by-letter headline
  * Sections: scroll-reveal animations via IntersectionObserver
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLogin } from "@privy-io/react-auth";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
@@ -429,13 +429,6 @@ export default function LandingPage() {
               }}
             />
             <HeroRing size={220} />
-          </div>
-
-          <div className="flex items-center gap-2 rounded-full border border-aegis-accent/20 bg-aegis-accent/5 px-4 py-1.5">
-            <span className="dot-blue inline-block animate-pulse" />
-            <span className="font-mono text-xs text-aegis-accent">
-              Live on Pacifica · Autonomous Protection Active
-            </span>
           </div>
 
           <div className="space-y-2" style={{ perspective: "600px" }}>

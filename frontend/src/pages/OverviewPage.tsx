@@ -179,7 +179,7 @@ function PositionSummaryCard() {
         {positions.map((pos) => {
           const sentiment = sentimentMap[pos.symbol];
           const notional = parseFloat(pos.amount) * parseFloat(pos.entry_price);
-          const liqDist = Math.random() * 20 + 5; // will be real from liquidation guard data
+
           return (
             <div
               key={pos.symbol}
