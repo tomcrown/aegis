@@ -5,7 +5,6 @@
  */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAegisStore } from "@/stores/useAegisStore";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { intelligenceApi } from "@/services/api";
 import { MarkdownBlock } from "@/components/shared/MarkdownBlock";
@@ -182,7 +181,12 @@ function NarrativesCard({ narratives }: { narratives: NarrativeItem[] }) {
 function CrashAlertsCard({ snapshot }: { snapshot: IntelligenceSnapshot }) {
   const alerts = Object.entries(snapshot.symbols)
     .filter(([, v]) => v.crash_alert?.alert)
-    .map(([sym, v]) => ({ symbol: sym, ...v.crash_alert }));
+    .map(([sym, v]) => ({
+      symbol: sym,
+      alert: v.crash_alert.alert,
+      keywords_hit: v.crash_alert.keywords_hit,
+      mention_count: v.crash_alert.mention_count,
+    }));
 
   if (alerts.length === 0) return null;
 
@@ -292,7 +296,7 @@ function TokenNewsCard({ symbol, news }: { symbol: string; news: NewsItem[] }) {
                 {views > 0 && <span>👁 {views.toLocaleString()}</span>}
                 {likes > 0 && <span>♥ {likes.toLocaleString()}</span>}
                 {reposts > 0 && <span>↩ {reposts.toLocaleString()}</span>}
-                {ts && (
+                {ts !== undefined && ts !== null && (
                   <>
                     <span>·</span>
                     <span>
@@ -533,8 +537,9 @@ function OnChainSignalsCard() {
     staleTime: 1800_000,
   });
 
-  const cas =
-    (platform === "twitter" ? twitterData?.tokens : telegramData?.tokens) ?? [];
+  const cas = ((platform === "twitter"
+    ? twitterData?.tokens
+    : telegramData?.tokens) ?? []) as TrendingCA[];
 
   return (
     <div className="card overflow-hidden">

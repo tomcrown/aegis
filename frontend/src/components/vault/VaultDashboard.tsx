@@ -177,9 +177,7 @@ export function VaultDashboard() {
                 <tbody className="divide-y divide-aegis-border/50">
                   {(trades as Record<string, string>[]).map((t, i) => {
                     const pnl = parseFloat(t["pnl"] ?? "0");
-                    const notional =
-                      parseFloat(t["amount"] ?? "0") *
-                      parseFloat(t["price"] ?? "0");
+
                     return (
                       <tr
                         key={i}

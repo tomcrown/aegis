@@ -1,12 +1,10 @@
 /**
  * Vault page — protocol stats, user position, on-chain activity, explainer.
  */
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { accountApi, builderApi, vaultApi } from "@/services/api";
+import { builderApi, vaultApi } from "@/services/api";
 import type { VaultShare, VaultState } from "@/types";
-import bs58 from "bs58";
 
 function fmt(val: string | undefined, decimals = 2) {
   const n = parseFloat(val ?? "0");
@@ -334,11 +332,10 @@ function OnChainActivity() {
               </thead>
               <tbody className="divide-y divide-aegis-border/50">
                 {(trades as Record<string, string>[]).map((t, i) => {
-                  const pnl = parseFloat(t["pnl"] ?? "0");
                   const notional =
                     parseFloat(t["amount"] ?? "0") *
                     parseFloat(t["price"] ?? "0");
-                  const isShort = false; // Aegis protective actions reduce long exposure
+
                   return (
                     <tr
                       key={i}

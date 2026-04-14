@@ -32,7 +32,6 @@ function GuardRow({ pos, markPrice }: { pos: Position; markPrice?: number }) {
 
   const danger = distPct !== null && distPct < 5;
   const warn = distPct !== null && distPct >= 5 && distPct < 15;
-  const safe = distPct !== null && distPct >= 15;
 
   const barColor = danger
     ? "bg-aegis-red"

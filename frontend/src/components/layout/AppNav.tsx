@@ -10,26 +10,6 @@ import { DevModeToggle } from "@/components/dashboard/DevModeToggle";
 
 export type AppPage = "overview" | "protection" | "intelligence" | "vault";
 
-function ShieldLogo() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 80 80" fill="none">
-      <path
-        d="M40 6L10 18V40C10 56 24 68 40 74C56 68 70 56 70 40V18L40 6Z"
-        stroke="#4F8EF7"
-        strokeWidth="3"
-        fill="none"
-      />
-      <path
-        d="M29 40L36 47L51 33"
-        stroke="#4F8EF7"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function AppNav() {
   const { logout } = usePrivy();
   const { disconnect } = useWallet();
