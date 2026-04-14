@@ -370,21 +370,11 @@ export default function LandingPage() {
       <nav className="fixed top-0 z-50 w-full border-b border-aegis-border bg-aegis-bg/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
-              <path
-                d="M40 6L10 18V40C10 56 24 68 40 74C56 68 70 56 70 40V18L40 6Z"
-                stroke="#4F8EF7"
-                strokeWidth="2.5"
-                fill="none"
-              />
-              <path
-                d="M29 40L36 47L51 33"
-                stroke="#4F8EF7"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <img
+              src="/aegis.png"
+              alt="Aegis Logo"
+              className="h-20 w-20 object-contain"
+            />
             <span className="font-display text-lg font-bold text-aegis-text">
               Aegis
             </span>
@@ -654,7 +644,7 @@ export default function LandingPage() {
           className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-6 py-24 text-center"
           animation="reveal-scale"
         >
-          <HeroRing size={140} />
+          <HeroRing size={180} />
           <div>
             <h2 className="font-display text-4xl font-bold text-aegis-text">
               Start Protection Now

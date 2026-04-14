@@ -300,9 +300,12 @@ function OnChainActivity() {
       <div className="card overflow-hidden">
         {trades.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-aegis-border bg-aegis-surface2 text-xl">
-              🛡
-            </div>
+            <img
+              src="/aegis.png"
+              alt="Aegis Logo"
+              className="h-20 w-20 object-contain"
+            />
+
             <p className="text-sm font-medium text-aegis-muted">
               No trades yet
             </p>
@@ -385,168 +388,168 @@ function OnChainActivity() {
   );
 }
 
-function HowItWorks() {
-  const steps = [
-    {
-      icon: "🔐",
-      title: "You set your safety level",
-      desc: "Choose when Aegis should step in. Conservative means it hedges early; aggressive means it waits for a bigger drop.",
-    },
-    {
-      icon: "📡",
-      title: "Aegis monitors 24/7",
-      desc: "Every 500ms, Aegis checks your margin ratio and reads social signals from Elfa AI. No sleep, no holidays.",
-    },
-    {
-      icon: "⚡",
-      title: "Automatic hedge fires",
-      desc: "When risk rises, Aegis places a counter-position on Pacifica using your Agent Key. No confirmation needed.",
-    },
-    {
-      icon: "📈",
-      title: "Hedge earns funding yield",
-      desc: "Hedge positions earn funding rate payments. This yield accrues to you via the vault.",
-    },
-    {
-      icon: "✅",
-      title: "Recovers when safe",
-      desc: "When your margin improves, Aegis closes the hedge automatically and resumes passive monitoring.",
-    },
-    {
-      icon: "🔍",
-      title: "Full audit trail",
-      desc: "Every Aegis trade is attributed to builder_code=AEGIS on Pacifica. Fully transparent and verifiable.",
-    },
-  ];
+// function HowItWorks() {
+//   const steps = [
+//     {
+//       icon: "🔐",
+//       title: "You set your safety level",
+//       desc: "Choose when Aegis should step in. Conservative means it hedges early; aggressive means it waits for a bigger drop.",
+//     },
+//     {
+//       icon: "📡",
+//       title: "Aegis monitors 24/7",
+//       desc: "Every 500ms, Aegis checks your margin ratio and reads social signals from Elfa AI. No sleep, no holidays.",
+//     },
+//     {
+//       icon: "⚡",
+//       title: "Automatic hedge fires",
+//       desc: "When risk rises, Aegis places a counter-position on Pacifica using your Agent Key. No confirmation needed.",
+//     },
+//     {
+//       icon: "📈",
+//       title: "Hedge earns funding yield",
+//       desc: "Hedge positions earn funding rate payments. This yield accrues to you via the vault.",
+//     },
+//     {
+//       icon: "✅",
+//       title: "Recovers when safe",
+//       desc: "When your margin improves, Aegis closes the hedge automatically and resumes passive monitoring.",
+//     },
+//     {
+//       icon: "🔍",
+//       title: "Full audit trail",
+//       desc: "Every Aegis trade is attributed to builder_code=AEGIS on Pacifica. Fully transparent and verifiable.",
+//     },
+//   ];
 
-  return (
-    <div className="card p-6">
-      <h3 className="section-title mb-5">How the Vault Works</h3>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {steps.map(({ icon, title, desc }) => (
-          <div key={title} className="flex gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-aegis-border bg-aegis-surface2 text-lg">
-              {icon}
-            </div>
-            <div>
-              <h4 className="font-display text-sm font-semibold text-aegis-text">
-                {title}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-aegis-muted">
-                {desc}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// //   return (
+// //     <div className="card p-6">
+// //       <h3 className="section-title mb-5">How the Vault Works</h3>
+// //       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+// //         {steps.map(({ icon, title, desc }) => (
+// //           <div key={title} className="flex gap-3">
+// //             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-aegis-border bg-aegis-surface2 text-lg">
+// //               {icon}
+// //             </div>
+// //             <div>
+// //               <h4 className="font-display text-sm font-semibold text-aegis-text">
+// //                 {title}
+// //               </h4>
+// //               <p className="mt-1 text-xs leading-relaxed text-aegis-muted">
+// //                 {desc}
+// //               </p>
+// //             </div>
+// //           </div>
+// //         ))}
+// //       </div>
+// //     </div>
+// //   );
+// // }
 
-function sortRecursive(obj: unknown): unknown {
-  if (Array.isArray(obj)) return obj.map(sortRecursive);
-  if (obj !== null && typeof obj === "object") {
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([k, v]) => [k, sortRecursive(v)]),
-    );
-  }
-  return obj;
-}
+// function sortRecursive(obj: unknown): unknown {
+//   if (Array.isArray(obj)) return obj.map(sortRecursive);
+//   if (obj !== null && typeof obj === "object") {
+//     return Object.fromEntries(
+//       Object.entries(obj as Record<string, unknown>)
+//         .sort(([a], [b]) => a.localeCompare(b))
+//         .map(([k, v]) => [k, sortRecursive(v)]),
+//     );
+//   }
+//   return obj;
+// }
 
-function canonicalJson(payload: object): string {
-  return JSON.stringify(sortRecursive(payload));
-}
+// function canonicalJson(payload: object): string {
+//   return JSON.stringify(sortRecursive(payload));
+// }
 
-function ApiSetupCard() {
-  const { address, signMessage } = useSolanaWallet();
-  const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(false);
+// function ApiSetupCard() {
+//   const { address, signMessage } = useSolanaWallet();
+//   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(
+//     null,
+//   );
+//   const [loading, setLoading] = useState(false);
 
-  async function handleGenerate() {
-    if (!address || !signMessage) return;
-    setLoading(true);
-    setStatus(null);
-    try {
-      const timestamp = Date.now();
-      const expiryWindow = 30_000;
+//   async function handleGenerate() {
+//     if (!address || !signMessage) return;
+//     setLoading(true);
+//     setStatus(null);
+//     try {
+//       const timestamp = Date.now();
+//       const expiryWindow = 30_000;
 
-      // Build the canonical message Pacifica expects
-      const header = {
-        expiry_window: expiryWindow,
-        timestamp,
-        type: "create_api_key",
-      };
-      const messageStr = canonicalJson({ ...header, data: {} });
-      const messageBytes = new TextEncoder().encode(messageStr);
+//       // Build the canonical message Pacifica expects
+//       const header = {
+//         expiry_window: expiryWindow,
+//         timestamp,
+//         type: "create_api_key",
+//       };
+//       const messageStr = canonicalJson({ ...header, data: {} });
+//       const messageBytes = new TextEncoder().encode(messageStr);
 
-      // Phantom signs
-      const sigBytes = await signMessage(messageBytes);
-      const signature = bs58.encode(sigBytes);
+//       // Phantom signs
+//       const sigBytes = await signMessage(messageBytes);
+//       const signature = bs58.encode(sigBytes);
 
-      const result = await accountApi.createApiConfigKey({
-        account: address,
-        signature,
-        timestamp,
-        expiry_window: expiryWindow,
-      });
+//       const result = await accountApi.createApiConfigKey({
+//         account: address,
+//         signature,
+//         timestamp,
+//         expiry_window: expiryWindow,
+//       });
 
-      setStatus({
-        ok: true,
-        msg: `Key saved: ${result.api_key.slice(0, 16)}...`,
-      });
-    } catch (err) {
-      setStatus({
-        ok: false,
-        msg: err instanceof Error ? err.message : "Failed",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
+//       setStatus({
+//         ok: true,
+//         msg: `Key saved: ${result.api_key.slice(0, 16)}...`,
+//       });
+//     } catch (err) {
+//       setStatus({
+//         ok: false,
+//         msg: err instanceof Error ? err.message : "Failed",
+//       });
+//     } finally {
+//       setLoading(false);
+//     }
+//   }
 
-  return (
-    <div className="card p-6">
-      <div className="mb-4">
-        <h3 className="font-display text-base font-bold text-aegis-text">
-          Rate Limit Key
-        </h3>
-        <p className="mt-1 text-sm text-aegis-muted">
-          Generate a Pacifica API Config Key to increase rate limits for the
-          Aegis backend. One-time setup — sign with your wallet.
-        </p>
-      </div>
-      <button
-        onClick={() => void handleGenerate()}
-        disabled={loading || !address || !signMessage}
-        className="w-full rounded-xl border border-aegis-accent/30 bg-aegis-accent/5 py-3 font-display text-sm font-semibold text-aegis-accent transition hover:bg-aegis-accent/10 active:scale-[0.98] disabled:opacity-40"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="h-3 w-3 animate-spin rounded-full border border-aegis-accent border-t-transparent" />
-            Waiting for Phantom...
-          </span>
-        ) : (
-          "Generate API Config Key"
-        )}
-      </button>
-      {status && (
-        <div
-          className={`mt-3 rounded-lg border px-3 py-2 text-center font-mono text-xs ${
-            status.ok
-              ? "border-aegis-green/20 bg-aegis-green/5 text-aegis-green"
-              : "border-aegis-red/20 bg-aegis-red/5 text-aegis-red"
-          }`}
-        >
-          {status.msg}
-        </div>
-      )}
-    </div>
-  );
-}
+//   return (
+//     <div className="card p-6">
+//       <div className="mb-4">
+//         <h3 className="font-display text-base font-bold text-aegis-text">
+//           Rate Limit Key
+//         </h3>
+//         <p className="mt-1 text-sm text-aegis-muted">
+//           Generate a Pacifica API Config Key to increase rate limits for the
+//           Aegis backend. One-time setup — sign with your wallet.
+//         </p>
+//       </div>
+//       <button
+//         onClick={() => void handleGenerate()}
+//         disabled={loading || !address || !signMessage}
+//         className="w-full rounded-xl border border-aegis-accent/30 bg-aegis-accent/5 py-3 font-display text-sm font-semibold text-aegis-accent transition hover:bg-aegis-accent/10 active:scale-[0.98] disabled:opacity-40"
+//       >
+//         {loading ? (
+//           <span className="flex items-center justify-center gap-2">
+//             <span className="h-3 w-3 animate-spin rounded-full border border-aegis-accent border-t-transparent" />
+//             Waiting for Phantom...
+//           </span>
+//         ) : (
+//           "Generate API Config Key"
+//         )}
+//       </button>
+//       {status && (
+//         <div
+//           className={`mt-3 rounded-lg border px-3 py-2 text-center font-mono text-xs ${
+//             status.ok
+//               ? "border-aegis-green/20 bg-aegis-green/5 text-aegis-green"
+//               : "border-aegis-red/20 bg-aegis-red/5 text-aegis-red"
+//           }`}
+//         >
+//           {status.msg}
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 export default function VaultPage() {
   const { address } = useSolanaWallet();
@@ -570,8 +573,8 @@ export default function VaultPage() {
       <UserPosition userShare={userShare} />
       <ProtectionImpact /> {/* ← add this line */}
       <OnChainActivity />
-      <ApiSetupCard />
-      <HowItWorks />
+      {/* <ApiSetupCard /> */}
+      {/* <HowItWorks /> */}
     </div>
   );
 }

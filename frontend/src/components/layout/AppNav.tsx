@@ -76,7 +76,11 @@ export function AppNav() {
       <div className="flex items-center justify-between px-4 py-2.5 sm:px-6">
         {/* Left — logo only */}
         <div className="flex items-center gap-2">
-          <ShieldLogo />
+          <img
+            src="/aegis.png"
+            alt="Aegis Logo"
+            className="h-10 w-10 object-contain"
+          />
           <span className="font-display text-sm font-bold tracking-tight text-aegis-text">
             Aegis
           </span>
