@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
+import { AppSidebar } from "@/components/layout/AppSidebar"; // ← add this
 
 import { AppNav, type AppPage } from "@/components/layout/AppNav";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -23,7 +24,7 @@ import VaultPage from "@/pages/VaultPage";
 export default function DashboardPage() {
   const [page, setPage] = useState<AppPage>("overview");
   const [onboarded, setOnboarded] = useState(
-    () => localStorage.getItem("aegis:onboarded") === "true"
+    () => localStorage.getItem("aegis:onboarded") === "true",
   );
 
   usePrivy();
@@ -76,15 +77,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-aegis-bg">
-      <AppNav page={page} onNavigate={setPage} />
+    <div className="flex min-h-screen flex-col bg-aegis-bg">
+      <AppNav />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {page === "overview"     && <OverviewPage />}
-        {page === "protection"   && <ProtectionPage />}
-        {page === "intelligence" && <IntelligencePage />}
-        {page === "vault"        && <VaultPage />}
-      </main>
+      <div className="flex flex-1">
+        <AppSidebar page={page} onNavigate={setPage} />
+
+        <main className="flex-1 px-6 py-6">
+          {page === "overview" && <OverviewPage />}
+          {page === "protection" && <ProtectionPage />}
+          {page === "intelligence" && <IntelligencePage />}
+          {page === "vault" && <VaultPage />}
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,10 +1,85 @@
 /**
- * Aegis Landing Page — animated, no gradients, Space Grotesk display font.
- * Sections: Hero → How it works → Stats → CTA
+ * Aegis Landing Page
+ * Hero: animated ring + letter-by-letter headline
+ * Sections: scroll-reveal animations via IntersectionObserver
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLogin } from "@privy-io/react-auth";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+
+// ── useInView hook ────────────────────────────────────────────────────────────
+function useInView(options?: IntersectionObserverInit) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.12, ...options },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, inView };
+}
+
+// ── RevealSection — wraps a section with a staggered reveal ──────────────────
+function RevealSection({
+  children,
+  className = "",
+  delay = 0,
+  animation = "reveal-up",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  animation?: "reveal-up" | "reveal-scale" | "reveal-left";
+}) {
+  const { ref, inView } = useInView();
+  return (
+    <div
+      ref={ref}
+      className={`${className} ${inView ? animation : "opacity-0"}`}
+      style={{ animationDelay: inView ? `${delay}ms` : undefined }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── StaggerGrid — children reveal one by one ─────────────────────────────────
+function StaggerGrid({
+  children,
+  className = "",
+  stagger = 80,
+}: {
+  children: React.ReactNode[];
+  className?: string;
+  stagger?: number;
+}) {
+  const { ref, inView } = useInView();
+  return (
+    <div ref={ref} className={className}>
+      {children.map((child, i) => (
+        <div
+          key={i}
+          className={inView ? "reveal-up" : "opacity-0"}
+          style={{ animationDelay: inView ? `${i * stagger}ms` : undefined }}
+        >
+          {child}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── Animated counter ──────────────────────────────────────────────────────────
 function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
@@ -40,66 +115,195 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   );
 }
 
-// ── Shield SVG (pure CSS, no gradients) ──────────────────────────────────────
-function ShieldLogo({ size = 80 }: { size?: number }) {
+// ── AnimatedWord — letters stagger in ────────────────────────────────────────
+function AnimatedWord({
+  text,
+  baseDelay = 0,
+  color,
+}: {
+  text: string;
+  baseDelay?: number;
+  color?: string;
+}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" fill="none">
-      <path
-        d="M40 6L10 18V40C10 56 24 68 40 74C56 68 70 56 70 40V18L40 6Z"
-        stroke="#4F8EF7"
-        strokeWidth="2.5"
-        fill="none"
-      />
-      <path
-        d="M40 14L18 24V40C18 52 28 62 40 67C52 62 62 52 62 40V24L40 14Z"
-        fill="#4F8EF7"
-        fillOpacity="0.08"
-        stroke="#4F8EF7"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M29 40L36 47L51 33"
-        stroke="#4F8EF7"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <>
+      {text.split("").map((char, i) => (
+        <span
+          key={i}
+          className="letter-animate"
+          style={{ animationDelay: `${baseDelay + i * 38}ms`, color }}
+        >
+          {char === " " ? "\u00A0" : char}
+        </span>
+      ))}
+    </>
   );
 }
 
-// ── Section: How it works step ────────────────────────────────────────────────
-function HowStep({
-  number,
-  title,
-  desc,
-  delay,
-}: {
-  number: string;
-  title: string;
-  desc: string;
-  delay: string;
-}) {
+// ── Hero ring ─────────────────────────────────────────────────────────────────
+function HeroRing({ size = 220 }: { size?: number }) {
+  const thickness = 12;
+  const r = (size - thickness) / 2;
+  const circumference = 2 * Math.PI * r;
+  const center = size / 2;
+  const [pct, setPct] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setPct(18), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  const dashOffset = circumference * (1 - pct / 100);
+  const color = "#22C55E";
+  const glow = "rgba(34,197,94,0.45)";
+  const softGlow = "rgba(34,197,94,0.12)";
+
   return (
     <div
-      className={`animate-slide-up opacity-0 ${delay} flex flex-col gap-3`}
-      style={{ animationFillMode: "forwards" }}
+      className="hero-shield-float relative"
+      style={{ width: size, height: size }}
     >
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-aegis-accent/30 bg-aegis-accent/10 font-display text-sm font-bold text-aegis-accent">
-          {number}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-full"
+        style={{ boxShadow: `0 0 80px 20px ${softGlow}` }}
+      />
+      <svg
+        width={size}
+        height={size}
+        className="-rotate-90"
+        style={{
+          filter: `drop-shadow(0 0 8px ${glow}) drop-shadow(0 0 2px ${color})`,
+        }}
+      >
+        <circle
+          cx={center}
+          cy={center}
+          r={r + thickness / 2 + 5}
+          fill="none"
+          stroke={color}
+          strokeWidth="1"
+          opacity="0.08"
+        />
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke="#1A2035"
+          strokeWidth={thickness}
+        />
+        {[0, 25, 50, 75].map((tick) => {
+          const angle = (tick / 100) * 360 - 90;
+          const rad = (angle * Math.PI) / 180;
+          return (
+            <line
+              key={tick}
+              x1={center + (r - thickness / 2 - 3) * Math.cos(rad)}
+              y1={center + (r - thickness / 2 - 3) * Math.sin(rad)}
+              x2={center + (r + thickness / 2 + 3) * Math.cos(rad)}
+              y2={center + (r + thickness / 2 + 3) * Math.sin(rad)}
+              stroke="#252F47"
+              strokeWidth="1.5"
+            />
+          );
+        })}
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={thickness}
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          style={{
+            transition: "stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1)",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 80 80"
+          fill="none"
+          className="mb-1"
+        >
+          <path
+            d="M40 6L10 18V40C10 56 24 68 40 74C56 68 70 56 70 40V18L40 6Z"
+            stroke={color}
+            strokeWidth="3"
+            fill="none"
+          />
+          <path
+            d="M29 40L36 47L51 33"
+            stroke={color}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span
+          className="font-display text-base font-bold"
+          style={{ color, textShadow: `0 0 16px ${glow}` }}
+        >
+          PROTECTED
         </span>
-        <div className="h-px flex-1 border-t border-dashed border-aegis-border" />
+        <span className="font-mono text-[10px] tracking-[0.2em] text-aegis-muted">
+          200.0% ratio
+        </span>
       </div>
-      <h3 className="font-display text-lg font-semibold text-aegis-text">
-        {title}
-      </h3>
-      <p className="text-sm leading-relaxed text-aegis-muted">{desc}</p>
+      <OrbitDot radius={r + thickness / 2 + 14} size={size} color={color} />
     </div>
   );
 }
 
-// ── Ticker bar ────────────────────────────────────────────────────────────────
+function OrbitDot({
+  radius,
+  size,
+  color,
+}: {
+  radius: number;
+  size: number;
+  color: string;
+}) {
+  const [angle, setAngle] = useState(0);
+  useEffect(() => {
+    let frame: number;
+    let start: number | null = null;
+    const duration = 6000;
+    const animate = (ts: number) => {
+      if (!start) start = ts;
+      const elapsed = (ts - start) % duration;
+      setAngle((elapsed / duration) * 360);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const rad = ((angle - 90) * Math.PI) / 180;
+  const cx = size / 2 + radius * Math.cos(rad);
+  const cy = size / 2 + radius * Math.sin(rad);
+
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: color,
+        boxShadow: `0 0 8px 2px ${color}`,
+        left: cx - 4,
+        top: cy - 4,
+      }}
+    />
+  );
+}
+
+// ── Ticker ────────────────────────────────────────────────────────────────────
 const TICKER_ITEMS = [
   "Autonomous Hedging",
   "Elfa AI Sentiment",
@@ -115,7 +319,7 @@ function TickerBar() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
   return (
     <div className="overflow-hidden border-y border-aegis-border bg-aegis-surface py-3">
-      <div className="flex animate-ticker gap-12 whitespace-nowrap">
+      <div className="animate-ticker flex gap-12 whitespace-nowrap">
         {items.map((item, i) => (
           <span
             key={i}
@@ -130,16 +334,35 @@ function TickerBar() {
   );
 }
 
-// ── Main landing page ─────────────────────────────────────────────────────────
+// ── Section header with line ──────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  const { ref, inView } = useInView();
+  return (
+    <div ref={ref} className="mb-4 flex flex-col items-center gap-3">
+      <div
+        className={`flex items-center gap-3 ${inView ? "reveal-up" : "opacity-0"}`}
+      >
+        <div className="h-px w-12 bg-gradient-to-r from-transparent to-aegis-accent/40" />
+        <span className="section-title">{children}</span>
+        <div className="h-px w-12 bg-gradient-to-l from-transparent to-aegis-accent/40" />
+      </div>
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { login } = useLogin();
   const { setVisible } = useWalletModal();
   const [heroVisible, setHeroVisible] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setHeroVisible(true), 100);
+    const t = setTimeout(() => setHeroVisible(true), 80);
     return () => clearTimeout(t);
   }, []);
+
+  const neverGetDelay = 200;
+  const liquidatedDelay = 600;
 
   return (
     <div className="min-h-screen bg-aegis-bg text-aegis-text">
@@ -147,7 +370,21 @@ export default function LandingPage() {
       <nav className="fixed top-0 z-50 w-full border-b border-aegis-border bg-aegis-bg/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <ShieldLogo size={28} />
+            <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
+              <path
+                d="M40 6L10 18V40C10 56 24 68 40 74C56 68 70 56 70 40V18L40 6Z"
+                stroke="#4F8EF7"
+                strokeWidth="2.5"
+                fill="none"
+              />
+              <path
+                d="M29 40L36 47L51 33"
+                stroke="#4F8EF7"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span className="font-display text-lg font-bold text-aegis-text">
               Aegis
             </span>
@@ -171,16 +408,15 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-20">
-        {/* Grid background */}
+        {/* Grid */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          className="pointer-events-none absolute inset-0 opacity-[0.025]"
           style={{
             backgroundImage:
               "linear-gradient(#4F8EF7 1px, transparent 1px), linear-gradient(90deg, #4F8EF7 1px, transparent 1px)",
             backgroundSize: "48px 48px",
           }}
         />
-
         {/* Corner accents */}
         <div className="pointer-events-none absolute left-0 top-0 h-px w-48 bg-aegis-accent/30" />
         <div className="pointer-events-none absolute left-0 top-0 h-48 w-px bg-aegis-accent/30" />
@@ -188,38 +424,74 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute right-0 bottom-0 h-48 w-px bg-aegis-accent/30" />
 
         <div
-          className={`flex flex-col items-center gap-8 text-center transition-all duration-700 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          className={`flex flex-col items-center gap-10 text-center transition-all duration-700 ${
+            heroVisible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8"
+          }`}
         >
-          {/* Shield */}
-          <div className="relative animate-shield-float">
-            <div className="absolute inset-0 rounded-full bg-aegis-accent/5 blur-2xl" />
-            <ShieldLogo size={88} />
+          <div className="relative">
+            <div
+              className="hero-ring-breathe pointer-events-none absolute inset-0 rounded-full"
+              style={{
+                boxShadow:
+                  "0 0 120px 40px rgba(34,197,94,0.06), 0 0 60px 10px rgba(34,197,94,0.08)",
+              }}
+            />
+            <HeroRing size={220} />
           </div>
 
-          {/* Badge */}
           <div className="flex items-center gap-2 rounded-full border border-aegis-accent/20 bg-aegis-accent/5 px-4 py-1.5">
-            <span className="dot-blue inline-block animate-blink" />
+            <span className="dot-blue inline-block animate-pulse" />
             <span className="font-mono text-xs text-aegis-accent">
               Live on Pacifica · Autonomous Protection Active
             </span>
           </div>
 
-          {/* Headline */}
-          <div className="space-y-3">
+          <div className="space-y-2" style={{ perspective: "600px" }}>
             <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-aegis-text sm:text-6xl lg:text-7xl">
-              Never Get
-              <br />
-              <span className="text-aegis-accent">Liquidated</span>
+              {heroVisible && (
+                <>
+                  <span>
+                    <AnimatedWord text="Never " baseDelay={neverGetDelay} />
+                    <AnimatedWord
+                      text="Get"
+                      baseDelay={neverGetDelay + 6 * 38}
+                    />
+                  </span>
+                  <br />
+                  <span>
+                    <AnimatedWord
+                      text="Liquidated"
+                      baseDelay={liquidatedDelay}
+                      color="#4F8EF7"
+                    />
+                  </span>
+                </>
+              )}
             </h1>
-            <p className="mx-auto max-w-xl text-lg leading-relaxed text-aegis-muted">
+            <p
+              className="mx-auto max-w-xl text-lg leading-relaxed text-aegis-muted"
+              style={{
+                opacity: heroVisible ? 1 : 0,
+                transform: heroVisible ? "translateY(0)" : "translateY(10px)",
+                transition: "opacity 0.6s ease 1.2s, transform 0.6s ease 1.2s",
+              }}
+            >
               The market doesn't sleep. Neither does Aegis. Connect your wallet,
               set your threshold, and let Aegis hedge your Pacifica positions
               automatically — before liquidation ever reaches you.
             </p>
           </div>
 
-          {/* CTA buttons */}
-          <div className="flex flex-col items-center gap-3 sm:flex-row">
+          <div
+            className="flex flex-col items-center gap-3 sm:flex-row"
+            style={{
+              opacity: heroVisible ? 1 : 0,
+              transform: heroVisible ? "translateY(0)" : "translateY(10px)",
+              transition: "opacity 0.6s ease 1.5s, transform 0.6s ease 1.5s",
+            }}
+          >
             <button
               onClick={() => setVisible(true)}
               className="btn-primary px-8 py-3.5 text-base"
@@ -233,23 +505,8 @@ export default function LandingPage() {
               Continue with Email
             </button>
           </div>
-
-          {/* Trust note */}
-          <p className="flex items-center gap-2 text-xs text-aegis-muted">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path
-                d="M6 1L1 3.5V6C1 8.8 3.2 11.2 6 12C8.8 11.2 11 8.8 11 6V3.5L6 1Z"
-                stroke="#6B7280"
-                strokeWidth="1"
-                fill="none"
-              />
-            </svg>
-            Non-custodial. Aegis can hedge — it cannot withdraw, transfer, or
-            touch your funds. Ever.
-          </p>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-10 flex flex-col items-center gap-2 animate-bounce">
           <span className="text-xs text-aegis-muted">Scroll to explore</span>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -268,10 +525,11 @@ export default function LandingPage() {
 
       {/* ── Stats ── */}
       <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-4 flex justify-center">
-          <span className="section-title">Aegis by the Numbers</span>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <SectionLabel>Aegis by the Numbers</SectionLabel>
+        <StaggerGrid
+          className="grid grid-cols-2 gap-4 sm:grid-cols-4"
+          stagger={100}
+        >
           {[
             { label: "Positions Monitored", value: 1, suffix: "" },
             { label: "Hedges Executed", value: 5, suffix: "" },
@@ -285,108 +543,118 @@ export default function LandingPage() {
               <div className="mt-1 text-xs text-aegis-muted">{label}</div>
             </div>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ── How it works ── */}
       <section className="border-t border-aegis-border bg-aegis-surface">
         <div className="mx-auto max-w-6xl px-6 py-24">
-          <div className="mb-12 text-center">
-            <span className="section-title">Protocol</span>
+          <RevealSection className="mb-12 text-center">
+            <SectionLabel>Protocol</SectionLabel>
             <h2 className="mt-2 font-display text-3xl font-bold text-aegis-text">
               Three Steps Between You and Liquidation
             </h2>
-          </div>
-          <div className="grid gap-8 sm:grid-cols-3">
-            <HowStep
-              number="01"
-              title="Monitor"
-              desc="Aegis watches your Pacifica positions every 500 milliseconds — day and night. The moment your margin health starts declining, the risk engine knows before you do."
-              delay="delay-100"
-            />
-            <HowStep
-              number="02"
-              title="Analyse"
-              desc="Aegis reads live social signals from Elfa AI. Bearish market? Larger hedge. Bullish? Lighter protection. It even detects crash keywords on Twitter and acts before price moves."
-              delay="delay-300"
-            />
-            <HowStep
-              number="03"
-              title="Protect"
-              desc="Aegis places a real hedge order on Pacifica — signed by your delegated Agent Key, verified on-chain, with a stop-loss attached automatically. No alerts. Actual execution."
-              delay="delay-500"
-            />
-          </div>
+          </RevealSection>
+
+          <StaggerGrid className="grid gap-8 sm:grid-cols-3" stagger={140}>
+            {[
+              {
+                number: "01",
+                title: "Monitor",
+                desc: "Aegis watches your Pacifica positions every 500 milliseconds — day and night. The moment your margin health starts declining, the risk engine knows before you do.",
+              },
+              {
+                number: "02",
+                title: "Analyse",
+                desc: "Aegis reads live social signals from Elfa AI. Bearish market? Larger hedge. Bullish? Lighter protection. It even detects crash keywords on Twitter and acts before price moves.",
+              },
+              {
+                number: "03",
+                title: "Protect",
+                desc: "Aegis places a real hedge order on Pacifica — signed by your delegated Agent Key, verified on-chain, with a stop-loss attached automatically. No alerts. Actual execution.",
+              },
+            ].map(({ number, title, desc }) => (
+              <div key={number} className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-aegis-accent/30 bg-aegis-accent/10 font-display text-sm font-bold text-aegis-accent">
+                    {number}
+                  </span>
+                  <div className="h-px flex-1 border-t border-dashed border-aegis-border" />
+                </div>
+                <h3 className="font-display text-lg font-semibold text-aegis-text">
+                  {title}
+                </h3>
+                <p className="text-sm leading-relaxed text-aegis-muted">
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </StaggerGrid>
         </div>
       </section>
 
-      {/* ── Trust / Security ── */}
+      {/* ── Security ── */}
       <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="mb-12 text-center">
-          <span className="section-title">Security Model</span>
+        <RevealSection className="mb-12 text-center">
+          <SectionLabel>Security Model</SectionLabel>
           <h2 className="mt-2 font-display text-3xl font-bold text-aegis-text">
             Your Money Stays Yours
           </h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        </RevealSection>
+
+        <StaggerGrid
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          stagger={70}
+        >
           {[
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Ed25519 Agent Key",
               desc: "A dedicated signing keypair handles every hedge order. Your main wallet signs once during setup and never again.",
             },
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Zero Custody",
-              desc: "The Agent Key has one job — place hedge orders. It cannot withdraw funds, move assets, or touch anything outside of hedging. Hardcoded. Unchangeable.",
+              desc: "The Agent Key has one job — place hedge orders. It cannot withdraw funds, move assets, or touch anything outside of hedging.",
             },
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Verifiable On-Chain",
               desc: "Every hedge Aegis places is tagged builder_code=AEGIS on Pacifica. You can verify every single action yourself.",
             },
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Encrypted Key Storage",
-              desc: "Your Agent Key is encrypted with AES-128 and stored securely. It is never logged, never exposed, never accessible outside the Aegis engine.",
+              desc: "Your Agent Key is encrypted with AES-128 and stored securely. Never logged, never exposed, never accessible outside the Aegis engine.",
             },
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Reduce-Only Exits",
-              desc: "When Aegis closes a hedge, it uses reduce-only orders. That means it can only close what it opened — it can never accidentally create new exposure.",
+              desc: "When Aegis closes a hedge, it uses reduce-only orders — it can only close what it opened, never creating new exposure.",
             },
             {
-              icon: "✓",
-              color: "text-aegis-green border-aegis-green/20 bg-aegis-green/5",
               title: "Auto Recovery",
-              desc: "When your margin ratio recovers to a safe level, Aegis closes the hedge automatically. Protection activates when you need it. Steps back when you don't.",
+              desc: "When your margin ratio recovers, Aegis closes the hedge automatically. Steps back when you don't need it.",
             },
-          ].map(({ icon, color, title, desc }) => (
+          ].map(({ title, desc }) => (
             <div
               key={title}
-              className={`card-hover rounded-xl border p-5 ${color}`}
+              className="card-hover rounded-xl border border-aegis-green/15 bg-aegis-green/[0.03] p-5"
             >
               <div className="mb-3 flex items-center gap-2">
-                <span className="font-bold">{icon}</span>
-                <span className="font-display text-sm font-semibold">
+                <span className="font-bold text-aegis-green">✓</span>
+                <span className="font-display text-sm font-semibold text-aegis-green">
                   {title}
                 </span>
               </div>
-              <p className="text-sm leading-relaxed opacity-70">{desc}</p>
+              <p className="text-sm leading-relaxed text-aegis-muted">{desc}</p>
             </div>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ── Final CTA ── */}
       <section className="border-t border-aegis-border bg-aegis-surface">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-6 py-24 text-center">
-          <ShieldLogo size={56} />
+        <RevealSection
+          className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-6 py-24 text-center"
+          animation="reveal-scale"
+        >
+          <HeroRing size={140} />
           <div>
             <h2 className="font-display text-4xl font-bold text-aegis-text">
               Start Protection Now
@@ -407,7 +675,7 @@ export default function LandingPage() {
               Continue with Email
             </button>
           </div>
-        </div>
+        </RevealSection>
       </section>
     </div>
   );
