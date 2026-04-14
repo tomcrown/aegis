@@ -1,19 +1,3 @@
-/**
- * WebSocket client — connects to ws://localhost:8000/ws/{wallet}
- * and feeds live events into the Zustand store.
- *
- * Handles:
- *   - mmr_update → updates riskState in store
- *   - hedge_opened / hedge_closed → triggers toast notifications
- *   - alert → watch-tier warning
- *   - Automatic reconnect with exponential backoff
- *   - Heartbeat ping every 25s
- *
- * Dev mode note: this hook connects to the real backend WebSocket.
- * The dev mode simulation only overrides the crossMmrPct value in the store
- * via useDevModeSimulation — it does NOT send anything to the backend.
- */
-
 import { useEffect, useRef } from "react";
 import { useAegisStore } from "@/stores/useAegisStore";
 import type { RiskTier, WsEvent } from "@/types";
@@ -39,9 +23,10 @@ export function useAegisWebSocket(wallet: string | null): void {
   const setMarkPrices = useAegisStore((s) => s.setMarkPrices);
   const addActivity = useAegisStore((s) => s.addActivity);
   const devModeRef = useRef(false);
-  // Keep a ref so the WS message handler (closed over in useEffect) sees live value
   const devModeEnabled = useAegisStore((s) => s.devMode.enabled);
-  useEffect(() => { devModeRef.current = devModeEnabled; }, [devModeEnabled]);
+  useEffect(() => {
+    devModeRef.current = devModeEnabled;
+  }, [devModeEnabled]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -93,12 +78,18 @@ export function useAegisWebSocket(wallet: string | null): void {
             risk_tier: RiskTier;
             mark_prices?: Record<string, number>;
           };
-          const dangerPct = Math.max(0, Math.min(100, 200 - payload.cross_mmr_pct));
+          const dangerPct = Math.max(
+            0,
+            Math.min(100, 200 - payload.cross_mmr_pct),
+          );
           setRiskState({
             crossMmrPct: dangerPct,
             tier: payload.risk_tier,
           });
-          if (payload.mark_prices && Object.keys(payload.mark_prices).length > 0) {
+          if (
+            payload.mark_prices &&
+            Object.keys(payload.mark_prices).length > 0
+          ) {
             setMarkPrices(payload.mark_prices);
           }
           break;
@@ -113,7 +104,7 @@ export function useAegisWebSocket(wallet: string | null): void {
             payload: event.payload,
           });
           window.dispatchEvent(
-            new CustomEvent("aegis:ws-event", { detail: event })
+            new CustomEvent("aegis:ws-event", { detail: event }),
           );
           break;
       }

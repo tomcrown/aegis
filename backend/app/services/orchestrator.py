@@ -304,11 +304,7 @@ class Orchestrator:
 
         active_hedges = await self._vault.get_active_hedges(wallet)
 
-        # ── Stale hedge cleanup ───────────────────────────────────────────────
-        # Hedge orders can be filled, cancelled, or expired on Pacifica without
-        # Aegis knowing. If a Redis record points to a non-existent order, the
-        # risk engine thinks the position is hedged and never opens a new one.
-        # Fix: check live open orders and purge any Redis records not found there.
+      
         
         if active_hedges:
             try:

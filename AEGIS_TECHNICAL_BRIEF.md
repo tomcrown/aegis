@@ -1,8 +1,3 @@
-# Aegis — Full Technical Brief
-> For any developer or AI reading this: everything you need to understand, navigate, and work on this codebase without missing anything critical.
-
----
-
 ## What Aegis Is
 
 Aegis is an autonomous on-chain risk management agent for Pacifica perpetuals. It monitors a user's margin health 24/7 and automatically places hedging counter-positions when their account approaches liquidation — without requiring any user action after setup.
@@ -10,6 +5,7 @@ Aegis is an autonomous on-chain risk management agent for Pacifica perpetuals. I
 **One-line summary:** If your SOL long is getting margin called, Aegis opens a SOL short before you get wiped.
 
 It combines three data sources to make that decision intelligently:
+
 1. **Pacifica REST API** — account margin ratio (cross_mmr), positions, equity
 2. **Pacifica WebSocket** — live mark prices for every symbol
 3. **Elfa AI API** — social sentiment scores, narratives, crash keyword detection
@@ -23,6 +19,7 @@ The hedge size is not fixed — it scales with how bearish sentiment is at that 
 Everything in the risk engine revolves around `cross_mmr`. Get this wrong and nothing makes sense.
 
 **Pacifica's cross_mmr is inverted from what you'd expect:**
+
 - `cross_mmr = 200%` → perfectly safe, well-capitalized
 - `cross_mmr = 150%` → normal, healthy
 - `cross_mmr = 110%` → danger zone, Aegis hedges here
@@ -31,9 +28,11 @@ Everything in the risk engine revolves around `cross_mmr`. Get this wrong and no
 So **higher = safer, lower = more dangerous**. The liquidation floor is ~100%, not 0%.
 
 **The frontend converts this to a 0–100 danger scale** for display:
+
 ```
 dangerPct = 200 - cross_mmr_pct
 ```
+
 - `cross_mmr=200` → `dangerPct=0` → green ring, PROTECTED
 - `cross_mmr=110` → `dangerPct=90` → red ring, HEDGING
 - `cross_mmr=100` → `dangerPct=100` → liquidated
@@ -79,7 +78,9 @@ dangerPct = 200 - cross_mmr_pct
 ## Backend: File-by-File
 
 ### `app/main.py`
+
 Entry point. FastAPI app with lifespan that:
+
 1. Connects to Redis
 2. Bootstraps the Agent Key (from Redis or env on first run)
 3. Creates `PacificaClient`, `VaultManager`, `Orchestrator`
@@ -87,6 +88,7 @@ Entry point. FastAPI app with lifespan that:
 5. Starts the orchestrator (4 background tasks)
 
 Routes registered:
+
 - `/health` — liveness
 - `/api/v1/onboarding` — approve-builder, bind-agent-key
 - `/api/v1/account` — account info, positions, aegis activate/deactivate, status, threshold, demo-trigger
@@ -97,7 +99,9 @@ Routes registered:
 - `/ws` — WebSocket connections per wallet
 
 ### `app/core/config.py`
+
 All settings via pydantic-settings. Reads `.env`. Key values:
+
 - `PACIFICA_REST_URL` — default testnet, change for mainnet
 - `PACIFICA_WS_URL` — default testnet WS
 - `PACIFICA_API_CONFIG_KEY` — optional rate-limit key, injected as `PF-API-KEY` header
@@ -111,9 +115,11 @@ All settings via pydantic-settings. Reads `.env`. Key values:
 `get_settings()` is `lru_cache`'d — one instance per process. Don't mutate it.
 
 ### `app/core/agent_key.py`
+
 The Aegis Agent Key is an Ed25519 keypair that signs all orders on behalf of users.
 
 **Bootstrap sequence (first run):**
+
 1. `AGENT_KEY_PRIVATE_KEY_B58` is set in `.env`
 2. On startup, decoded from base58 → 64-byte raw key
 3. Encrypted with Fernet → stored in Redis at `aegis:agent_key:encrypted`
@@ -124,9 +130,11 @@ The Aegis Agent Key is an Ed25519 keypair that signs all orders on behalf of use
 `get_agent_keypair()` and `get_agent_pubkey()` are used by the execution engine everywhere.
 
 ### `app/core/encryption.py`
+
 Simple Fernet symmetric encryption. `encrypt(bytes) → str`, `decrypt(str) → bytes`. Used only for the agent key.
 
 ### `app/services/orchestrator.py`
+
 **The heartbeat of the entire system.** Manages 4 asyncio tasks:
 
 1. **`ws_monitor`** — `PacificaWsMonitor.run()`. Persistent WebSocket to Pacifica for mark prices.
@@ -146,22 +154,26 @@ Simple Fernet symmetric encryption. `encrypt(bytes) → str`, `decrypt(str) → 
 **Critical:** The `_sentiment_cache` dict is populated by the elfa poller and read by the risk loop. They share the same in-process dict. No locking needed — Python GIL + single-threaded asyncio.
 
 ### `app/services/risk/engine.py`
+
 **Pure function, zero I/O.** Takes an `AccountSnapshot` + sentiment map, returns `RiskEngineOutput`.
 
 **Thresholds:**
+
 ```python
 _SAFE_THRESHOLD   = 150   # cross_mmr > this → SAFE
-_WATCH_THRESHOLD  = 120   # cross_mmr ≤ this → WATCH  
+_WATCH_THRESHOLD  = 120   # cross_mmr ≤ this → WATCH
 _HEDGE_THRESHOLD  = 110   # cross_mmr ≤ this → HEDGE
 _RECOVER_THRESHOLD = 140  # cross_mmr > this while hedged → close hedges
 ```
 
 **User threshold slider (50–95)** maps to: `effective_hedge_threshold = max(110, 200 - slider_value)`
+
 - Slider at 75 → hedge at cross_mmr ≤ 125%
 - Slider at 90 (conservative) → hedge at cross_mmr ≤ 140% (triggers much earlier)
 - Slider at 50 (aggressive) → hedge at cross_mmr ≤ 150% (only hardcoded floor applies)
 
 **Hedge multipliers by sentiment:**
+
 - BEARISH (score < 35): 75% of position size
 - NEUTRAL (35–65): 50%
 - BULLISH (> 65): 25%
@@ -171,7 +183,9 @@ _RECOVER_THRESHOLD = 140  # cross_mmr > this while hedged → close hedges
 **Preemptive hedge logic exists but is partially implemented** — the code detects bearish score < 30 at cross_mmr ≤ 115%, but the override branch is empty (doesn't actually change anything yet).
 
 ### `app/services/pacifica/client.py`
+
 Async httpx client. Single instance, connection-pooled. Key behaviors:
+
 - 4 retries with exponential backoff on 5xx and network errors
 - 429 handling: respects `Retry-After` header
 - Only first retry attempt logs WARNING; subsequent retries are DEBUG (to reduce noise)
@@ -182,9 +196,11 @@ Async httpx client. Single instance, connection-pooled. Key behaviors:
 **Signing:** All order payloads are built by `signing.py` before being passed here. This client does NOT sign — it just POSTs.
 
 ### `app/services/pacifica/signing.py`
+
 **Critical — get this wrong and all orders fail.**
 
 Pacifica signing spec:
+
 1. Build header: `{type, timestamp, expiry_window}`
 2. Build payload dict of operation fields
 3. Merge: `{...header, data: payload}` — the `data:` wrapper is required
@@ -199,14 +215,17 @@ The signed message has `data:{}` but the POST body does NOT. Common confusion po
 `expiry_window` is in milliseconds. Pacifica validates that `now - timestamp < expiry_window`. If the user takes longer than this to sign (e.g. Phantom popup delay), the signature is rejected. Use 30000ms (30s).
 
 ### `app/services/pacifica/ws_monitor.py`
+
 Persistent WebSocket to Pacifica. Subscribes to `prices` channel (no auth needed). Stores mark prices in Redis with 30s TTL: `aegis:prices:{SYMBOL}`. Heartbeat ping every 30s. Reconnects with backoff on any failure.
 
 `get_mark_price(symbol)` → reads from Redis, returns string or None.
 
 ### `app/services/execution/engine.py`
+
 Converts `HedgeDecision` → signed Pacifica market order. Converts `RecoveryDecision` → signed cancel order.
 
 **Always:**
+
 - `builder_code = "AEGIS"` — hardcoded, cannot be passed differently
 - `agent_wallet` = agent key pubkey
 - Places a stop-loss order immediately after every hedge (3% adverse move from mark price)
@@ -215,20 +234,22 @@ Converts `HedgeDecision` → signed Pacifica market order. Converts `RecoveryDec
 Slippage: 0.5% on all hedge market orders.
 
 ### `app/services/elfa/client.py`
+
 Elfa AI v2 client. All endpoints Redis-cached to minimize credit usage (~460 credits/day estimated vs 20,000 available).
 
-| Method | Endpoint | Cache TTL |
-|--------|----------|-----------|
-| `get_sentiment_batch` | `/trending-tokens` (change_percent → score) | 65s |
-| `check_crash_keywords` | `/trending-tokens` filtered | 10min |
-| `get_trending_narratives` | `/trending-narratives` | 30min |
-| `get_trending_cas` | `/trending-cas` | 30min |
-| `get_token_news` | `/data/top-mentions` | 10min |
-| `get_macro_context` | `/v2/chat` (analysisType: macro) | 30min |
-| `get_hedge_narrative` | `/v2/chat` (analysisType: tokenAnalysis) | 5min |
-| `get_intelligence_snapshot` | aggregates all above | — |
+| Method                      | Endpoint                                    | Cache TTL |
+| --------------------------- | ------------------------------------------- | --------- |
+| `get_sentiment_batch`       | `/trending-tokens` (change_percent → score) | 65s       |
+| `check_crash_keywords`      | `/trending-tokens` filtered                 | 10min     |
+| `get_trending_narratives`   | `/trending-narratives`                      | 30min     |
+| `get_trending_cas`          | `/trending-cas`                             | 30min     |
+| `get_token_news`            | `/data/top-mentions`                        | 10min     |
+| `get_macro_context`         | `/v2/chat` (analysisType: macro)            | 30min     |
+| `get_hedge_narrative`       | `/v2/chat` (analysisType: tokenAnalysis)    | 5min      |
+| `get_intelligence_snapshot` | aggregates all above                        | —         |
 
 **Elfa API response shape gotchas:**
+
 - `trending-narratives`: data is at `body["data"]["trending_narratives"]` — NOT `body["data"]["data"]`
 - `trending-cas`: data is at `body["data"]` directly (a list) — NOT nested further
 - `top-mentions`: returns engagement metadata only (no tweet text). Fields: `link, author, timestamp, like_count, repost_count, view_count`
@@ -237,9 +258,11 @@ Elfa AI v2 client. All endpoints Redis-cached to minimize credit usage (~460 cre
 Sentiment score derivation: Elfa doesn't return a 0–100 score directly. We derive it from `change_percent` of trending token mentions: `score = clamp(50 + change_percent / 2, 0, 100)`. Sentiment bucket: score < 35 = BEARISH, 35–65 = NEUTRAL, > 65 = BULLISH.
 
 ### `app/services/vault/manager.py`
+
 Redis-backed ledger. **Redis is the only database — no SQL, no files.**
 
 Redis key schema:
+
 ```
 aegis:vault:tvl                      → string decimal (total USDC protected)
 aegis:vault:shares:{wallet}          → JSON VaultShare
@@ -269,18 +292,23 @@ Premium: 0.1% (10 bps) of total position notional at activation time. Stored as 
 ## Frontend: File-by-File
 
 ### `src/main.tsx`
+
 Providers stack (outermost → innermost):
 `PrivyProvider` → `WalletProvider` (Solana adapter) → `ConnectionProvider` → `QueryClientProvider` → `App`
 
 ### `src/hooks/useSolanaWallet.ts`
+
 **Always use this hook, never `useWallet()` directly.** Handles two auth paths:
+
 1. Native wallet adapter (Phantom, Solflare) — checked first
 2. Privy embedded wallet (email/Twitter login) — fallback
 
 Returns `{ address, wallet, signMessage }`. `signMessage` is undefined on the Privy path.
 
 ### `src/stores/useAegisStore.ts`
+
 Zustand store. All live state:
+
 - `riskState` — `{crossMmrPct, tier, aegisActive, threshold}`. `crossMmrPct` is 0–100 danger scale (0=safe, 100=liq).
 - `positions` — current open positions
 - `sentimentMap` — `{symbol: SentimentData}`
@@ -289,19 +317,24 @@ Zustand store. All live state:
 - `devMode` — `{enabled, simulatedPriceDrop}`
 
 ### `src/hooks/useAegisWebSocket.ts`
+
 WebSocket client. Connects to `${VITE_WS_URL}/{wallet}`. Handles:
+
 - `mmr_update` → updates `riskState` and `markPrices` in store (skipped if devMode enabled)
 - `hedge_opened`, `hedge_closed`, `alert` → adds to `activityLog`, dispatches `aegis:ws-event` CustomEvent
 - Exponential backoff reconnect
 - 25s heartbeat ping
 
 ### `src/lib/signing.ts`
+
 Mirrors backend `canonical_json()`. Sorts keys recursively, produces compact JSON. Used by onboarding and `ApiSetupCard` in VaultPage.
 
 ### `src/services/api.ts`
+
 All HTTP calls. Groups: `accountApi`, `vaultApi`, `builderApi`, `sentimentApi`, `intelligenceApi`, `onboardingApi`.
 
 Key calls:
+
 - `accountApi.getAegisStatus(wallet)` → `{active, threshold}` — called on dashboard mount to restore state
 - `accountApi.activateAegis(wallet, threshold)` → adds to Redis active set
 - `accountApi.updateThreshold(wallet, threshold)` → PATCH, debounced from slider
@@ -320,12 +353,15 @@ Key calls:
 **`VaultPage`** — ProtocolStats, UserPosition, OnChainActivity (builder trade history), ApiSetupCard (generates Pacifica API Config Key), HowItWorks.
 
 ### `src/components/shared/RingMeter.tsx`
+
 Takes `pct` 0–100 (danger scale). 0 = green PROTECTED, 80+ = amber WATCH, 90+ = red DANGER. Animated SVG ring.
 
 ### `src/components/shared/MarkdownBlock.tsx`
+
 Lightweight markdown renderer for Elfa macro context. Strips Elfa tool reference links (`[text](url)`). Renders `##` headers, `###` subheaders, `---` dividers, `- ` bullets, `**bold**`.
 
 ### `src/components/dashboard/LiquidationGuard.tsx`
+
 Shows per-position liquidation distance. Now uses live mark price from `markPrices` store (updated every 500ms via WS) instead of static entry price. Falls back to entry price if no mark price yet. Label switches from "Entry" to "Mark Price" with a pulse dot when live data is flowing.
 
 ---
@@ -335,18 +371,21 @@ Shows per-position liquidation distance. Now uses live mark price from `markPric
 Two signature steps, both user-signed (NOT agent-signed):
 
 **Step 1: Approve Builder Code**
+
 - Type: `"approve_builder_code"`
 - Payload: `{builder_code: "AEGIS", max_fee_rate: "0.0005"}`
 - Message signed: `canonical_json({type, expiry_window, timestamp, data: {builder_code, max_fee_rate}})`
 - POST body (flat, no data wrapper): `{account, signature, timestamp, expiry_window, builder_code, max_fee_rate}`
 
 **Step 2: Bind Agent Key**
+
 - Type: `"bind_agent_wallet"`
 - Payload: `{agent_wallet: <agent pubkey>}`
 - Message signed: `canonical_json({type, expiry_window, timestamp, data: {agent_wallet}})`
 - POST body: `{account, signature, timestamp, expiry_window, agent_wallet}`
 
 **Critical signing rules:**
+
 - `expiry_window = 30000` (30 seconds). Phantom popup can take >5s. Under 30s causes "Verification failed".
 - The signed message MUST have `data: {}` nested wrapper
 - The POST body MUST NOT have `data:` wrapper — flat merge only
@@ -394,6 +433,7 @@ Backend → Frontend via `/ws/{wallet}`:
 ## Dev Mode
 
 Toggle in AppNav. When enabled:
+
 - WS `mmr_update` events are ignored — store is NOT updated from real backend
 - `useDevModeSimulation` hook drives the ring using a simulated price drop value
 - Demo trigger button appears in ProtectionPage — calls `POST /api/v1/account/aegis/demo-trigger`
@@ -404,6 +444,7 @@ Toggle in AppNav. When enabled:
 ## Environment Variables
 
 ### Backend (`.env`)
+
 ```
 PACIFICA_REST_URL=https://test-api.pacifica.fi/api/v1
 PACIFICA_WS_URL=wss://test-ws.pacifica.fi/ws
@@ -419,6 +460,7 @@ LOG_LEVEL=INFO
 ```
 
 ### Frontend (`.env` / Vite)
+
 ```
 VITE_API_BASE_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000/ws
