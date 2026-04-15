@@ -4,7 +4,6 @@
  * Sections: scroll-reveal animations via IntersectionObserver
  */
 import { useEffect, useRef, useState } from "react";
-import { usePhantomConnect } from "@/hooks/usePhantomConnect";
 
 // ── useInView hook ────────────────────────────────────────────────────────────
 function useInView(options?: IntersectionObserverInit) {
