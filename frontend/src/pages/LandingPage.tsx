@@ -484,7 +484,7 @@ export default function LandingPage({ onConnect }: { onConnect: () => void }) {
               onClick={() => void handleConnect()}
               className="btn-primary px-8 py-3.5 text-base"
             >
-              Activate Protection — It's Free
+              Activate Protection
             </button>
           </div>
         </div>
