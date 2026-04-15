@@ -41,104 +41,104 @@ function StatCard({
   );
 }
 
-function ProtocolStats({ vaultState }: { vaultState?: VaultState }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="section-title">Protocol Overview</h3>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="Total Value Protected"
-          value={fmt(vaultState?.total_tvl)}
-          sub="Across all users"
-          accent
-        />
-        <StatCard
-          label="Active Protections"
-          value={String(vaultState?.active_protections ?? 0)}
-          sub="Live hedge shields"
-        />
-        <StatCard
-          label="Users Protected"
-          value={String(vaultState?.user_count ?? 0)}
-          sub="Onboarded accounts"
-        />
-        <StatCard
-          label="Yield Distributed"
-          value={fmt(vaultState?.total_yield_distributed)}
-          sub="Funding rate earnings"
-          color="text-aegis-green"
-        />
-      </div>
-    </div>
-  );
-}
+// function ProtocolStats({ vaultState }: { vaultState?: VaultState }) {
+//   return (
+//     <div className="space-y-3">
+//       <h3 className="section-title">Protocol Overview</h3>
+//       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+//         <StatCard
+//           label="Total Value Protected"
+//           value={fmt(vaultState?.total_tvl)}
+//           sub="Across all users"
+//           accent
+//         />
+//         <StatCard
+//           label="Active Protections"
+//           value={String(vaultState?.active_protections ?? 0)}
+//           sub="Live hedge shields"
+//         />
+//         <StatCard
+//           label="Users Protected"
+//           value={String(vaultState?.user_count ?? 0)}
+//           sub="Onboarded accounts"
+//         />
+//         <StatCard
+//           label="Yield Distributed"
+//           value={fmt(vaultState?.total_yield_distributed)}
+//           sub="Funding rate earnings"
+//           color="text-aegis-green"
+//         />
+//       </div>
+//     </div>
+//   );
+// }
 
-function UserPosition({ userShare }: { userShare?: VaultShare }) {
-  const utilization = userShare
-    ? Math.min(100, (userShare.active_hedges / 5) * 100)
-    : 0;
+// function UserPosition({ userShare }: { userShare?: VaultShare }) {
+//   const utilization = userShare
+//     ? Math.min(100, (userShare.active_hedges / 5) * 100)
+//     : 0;
 
-  return (
-    <div className="space-y-3">
-      <h3 className="section-title">Your Position</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="card p-5">
-          <div className="label mb-1">Protection Premium</div>
-          <div className="font-display text-2xl font-bold text-aegis-text">
-            {fmt(userShare?.deposited_usdc)}
-          </div>
-          <div className="mt-1 font-mono text-xs text-aegis-muted">
-            0.1% of your position notional
-          </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-aegis-surface2">
-            <div
-              className="h-full rounded-full bg-aegis-accent"
-              style={{ width: "100%" }}
-            />
-          </div>
-        </div>
+//   return (
+//     <div className="space-y-3">
+//       <h3 className="section-title">Your Position</h3>
+//       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+//         <div className="card p-5">
+//           <div className="label mb-1">Protection Premium</div>
+//           <div className="font-display text-2xl font-bold text-aegis-text">
+//             {fmt(userShare?.deposited_usdc)}
+//           </div>
+//           <div className="mt-1 font-mono text-xs text-aegis-muted">
+//             0.1% of your position notional
+//           </div>
+//           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-aegis-surface2">
+//             <div
+//               className="h-full rounded-full bg-aegis-accent"
+//               style={{ width: "100%" }}
+//             />
+//           </div>
+//         </div>
 
-        <div className="card p-5">
-          <div className="label mb-1">Yield Earned</div>
-          <div className="font-display text-2xl font-bold text-aegis-green">
-            {fmt(userShare?.yield_earned)}
-          </div>
-          <div className="mt-1 font-mono text-xs text-aegis-muted">
-            Funding rate on hedge positions
-          </div>
-          <div className="mt-3 flex items-center gap-1.5">
-            <span className="dot-green" />
-            <span className="font-mono text-[10px] text-aegis-muted">
-              Accruing in real-time
-            </span>
-          </div>
-        </div>
+//         <div className="card p-5">
+//           <div className="label mb-1">Yield Earned</div>
+//           <div className="font-display text-2xl font-bold text-aegis-green">
+//             {fmt(userShare?.yield_earned)}
+//           </div>
+//           <div className="mt-1 font-mono text-xs text-aegis-muted">
+//             Funding rate on hedge positions
+//           </div>
+//           <div className="mt-3 flex items-center gap-1.5">
+//             <span className="dot-green" />
+//             <span className="font-mono text-[10px] text-aegis-muted">
+//               Accruing in real-time
+//             </span>
+//           </div>
+//         </div>
 
-        <div className="card p-5">
-          <div className="label mb-1">Active Hedges</div>
-          <div className="font-display text-2xl font-bold text-aegis-text">
-            {userShare?.active_hedges ?? 0}
-          </div>
-          <div className="mt-1 font-mono text-xs text-aegis-muted">
-            Open protective orders
-          </div>
-          <div className="mt-3">
-            <div className="mb-1 flex justify-between font-mono text-[10px] text-aegis-muted">
-              <span>Capacity</span>
-              <span>{Math.round(utilization)}%</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-aegis-surface2">
-              <div
-                className="h-full rounded-full bg-aegis-amber transition-all"
-                style={{ width: `${utilization}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+//         <div className="card p-5">
+//           <div className="label mb-1">Active Hedges</div>
+//           <div className="font-display text-2xl font-bold text-aegis-text">
+//             {userShare?.active_hedges ?? 0}
+//           </div>
+//           <div className="mt-1 font-mono text-xs text-aegis-muted">
+//             Open protective orders
+//           </div>
+//           <div className="mt-3">
+//             <div className="mb-1 flex justify-between font-mono text-[10px] text-aegis-muted">
+//               <span>Capacity</span>
+//               <span>{Math.round(utilization)}%</span>
+//             </div>
+//             <div className="h-1.5 overflow-hidden rounded-full bg-aegis-surface2">
+//               <div
+//                 className="h-full rounded-full bg-aegis-amber transition-all"
+//                 style={{ width: `${utilization}%` }}
+//               />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 
 function ProtectionImpact() {
   const { data: trades = [] } = useQuery<unknown[]>({
@@ -239,7 +239,7 @@ function ProtectionImpact() {
                       {symbol} — Deleveraged {data.count}x
                     </div>
                     <div className="mt-1 font-mono text-xs text-aegis-muted leading-relaxed">
-                      Aegis reduced your {symbol} exposure by{" "}
+                      Aegis reduced {symbol} exposure by{" "}
                       <span className="text-aegis-text font-semibold">
                         {data.amount.toFixed(2)} {symbol}
                       </span>{" "}
@@ -250,7 +250,7 @@ function ProtectionImpact() {
                       <span className="text-aegis-green font-semibold">
                         ${symbolSaved.toFixed(2)}
                       </span>{" "}
-                      of your capital.
+                      in capital across the protocol.
                     </div>
                   </div>
                 </div>
@@ -282,6 +282,22 @@ function OnChainActivity() {
     queryFn: () => builderApi.getTrades(20),
     refetchInterval: 30_000,
   });
+
+  function timeAgo(ms: number): string {
+    const diff = Date.now() - ms;
+    const m = Math.floor(diff / 60_000);
+    const h = Math.floor(diff / 3_600_000);
+    const d = Math.floor(diff / 86_400_000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    if (h < 24) return `${h}h ago`;
+    return `${d}d ago`;
+  }
+
+  function shortWallet(addr: string): string {
+    if (!addr || addr.length < 10) return addr;
+    return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
+  }
 
   return (
     <div className="space-y-3">
@@ -318,11 +334,12 @@ function OnChainActivity() {
                 <tr className="border-b border-aegis-border bg-aegis-surface2">
                   {[
                     "Token",
-                    "Direction",
+                    "Wallet",
                     "Size",
                     "Avg Price",
                     "Value",
                     "Builder Fee",
+                    "Time",
                   ].map((h) => (
                     <th key={h} className="px-4 py-3 text-left">
                       <span className="label">{h}</span>
@@ -338,7 +355,7 @@ function OnChainActivity() {
 
                   return (
                     <tr
-                      key={i}
+                      key={t["history_id"] ?? i}
                       className="group hover:bg-aegis-surface2 transition-colors"
                     >
                       <td className="px-4 py-3">
@@ -353,10 +370,8 @@ function OnChainActivity() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded px-2 py-0.5 font-display text-[10px] font-semibold bg-aegis-red/10 text-aegis-red">
-                          ↓ HEDGE
-                        </span>
+                      <td className="px-4 py-3 font-mono text-aegis-muted">
+                        {shortWallet(t["address"] ?? "")}
                       </td>
                       <td className="px-4 py-3 font-mono text-aegis-text">
                         {t["amount"]}
@@ -372,6 +387,11 @@ function OnChainActivity() {
                       </td>
                       <td className="px-4 py-3 font-mono text-aegis-muted">
                         {fmt(t["builder_fee"])}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-aegis-muted">
+                        {t["created_at"]
+                          ? timeAgo(parseInt(t["created_at"]))
+                          : "—"}
                       </td>
                     </tr>
                   );
@@ -566,8 +586,8 @@ export default function VaultPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <ProtocolStats vaultState={vaultState} />
-      <UserPosition userShare={userShare} />
+      {/* <ProtocolStats vaultState={vaultState} /> */}
+      {/* <UserPosition userShare={userShare} /> */}
       <ProtectionImpact /> {/* ← add this line */}
       <OnChainActivity />
       {/* <ApiSetupCard /> */}

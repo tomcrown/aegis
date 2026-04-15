@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
   BrainCircuit,
-  Vault,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import type { AppPage } from "@/components/layout/AppNav";
@@ -41,9 +41,9 @@ const NAV_ITEMS: {
   },
   {
     id: "vault",
-    label: "Vault",
-    Icon: Vault,
-    description: "Protocol stats",
+    label: "Activity",
+    Icon: History,
+    description: "Hedge history",
   },
 ];
 
