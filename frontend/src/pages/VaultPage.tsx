@@ -2,44 +2,44 @@
  * Vault page — protocol stats, user position, on-chain activity, explainer.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { builderApi, vaultApi } from "@/services/api";
-import type { VaultShare, VaultState } from "@/types";
+// import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { builderApi } from "@/services/api";
+// import type { VaultShare, VaultState } from "@/types";
 
 function fmt(val: string | undefined, decimals = 2) {
   const n = parseFloat(val ?? "0");
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-  accent,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: boolean;
-  color?: string;
-}) {
-  return (
-    <div
-      className={`card p-5 ${accent ? "border-aegis-accent/30 bg-aegis-accent/[0.03]" : ""}`}
-    >
-      <div className="label mb-1">{label}</div>
-      <div
-        className={`font-display text-2xl font-bold ${color ?? (accent ? "text-aegis-accent" : "text-aegis-text")}`}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div className="mt-0.5 font-mono text-xs text-aegis-muted">{sub}</div>
-      )}
-    </div>
-  );
-}
+// function StatCard({
+//   label,
+//   value,
+//   sub,
+//   accent,
+//   color,
+// }: {
+//   label: string;
+//   value: string;
+//   sub?: string;
+//   accent?: boolean;
+//   color?: string;
+// }) {
+//   return (
+//     <div
+//       className={`card p-5 ${accent ? "border-aegis-accent/30 bg-aegis-accent/[0.03]" : ""}`}
+//     >
+//       <div className="label mb-1">{label}</div>
+//       <div
+//         className={`font-display text-2xl font-bold ${color ?? (accent ? "text-aegis-accent" : "text-aegis-text")}`}
+//       >
+//         {value}
+//       </div>
+//       {sub && (
+//         <div className="mt-0.5 font-mono text-xs text-aegis-muted">{sub}</div>
+//       )}
+//     </div>
+//   );
+// }
 
 // function ProtocolStats({ vaultState }: { vaultState?: VaultState }) {
 //   return (
@@ -569,20 +569,20 @@ function OnChainActivity() {
 // }
 
 export default function VaultPage() {
-  const { address } = useSolanaWallet();
+  // const { address } = useSolanaWallet();
 
-  const { data: vaultState } = useQuery<VaultState>({
-    queryKey: ["vault-state"],
-    queryFn: vaultApi.getState,
-    refetchInterval: 15_000,
-  });
+  // const { data: vaultState } = useQuery<VaultState>({
+  //   queryKey: ["vault-state"],
+  //   queryFn: vaultApi.getState,
+  //   refetchInterval: 15_000,
+  // });
 
-  const { data: userShare } = useQuery<VaultShare>({
-    queryKey: ["vault-share", address],
-    queryFn: () => vaultApi.getUserShare(address!),
-    enabled: !!address,
-    refetchInterval: 15_000,
-  });
+  // const { data: userShare } = useQuery<VaultShare>({
+  //   queryKey: ["vault-share", address],
+  //   queryFn: () => vaultApi.getUserShare(address!),
+  //   enabled: !!address,
+  //   refetchInterval: 15_000,
+  // });
 
   return (
     <div className="space-y-8 animate-fade-in">
