@@ -1,8 +1,3 @@
-/**
- * Top navigation bar — persistent across all dashboard pages.
- * Navigation items have moved to AppSidebar.
- */
-import { usePrivy } from "@privy-io/react-auth";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAegisStore } from "@/stores/useAegisStore";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
@@ -10,18 +5,29 @@ import { DevModeToggle } from "@/components/dashboard/DevModeToggle";
 
 export type AppPage = "overview" | "protection" | "intelligence" | "vault";
 
-export function AppNav() {
-  const { logout } = usePrivy();
+export function AppNav({ onDisconnect }: { onDisconnect: () => void }) {
   const { disconnect } = useWallet();
   const { address } = useSolanaWallet();
 
   async function handleDisconnect() {
+    sessionStorage.removeItem("aegis:connected");
+
+    // Disconnect wallet adapter
     try {
       await disconnect();
     } catch {
       /* not connected via adapter */
+      onDisconnect();
     }
-    await logout();
+    // Also disconnect direct window.solana connection
+    try {
+      const solana = (window as any).solana;
+      if (solana?.isConnected) await solana.disconnect();
+    } catch {
+      /* ignore */
+    }
+    // Force page reload so App re-evaluates auth state cleanly
+    window.location.reload();
   }
 
   const riskState = useAegisStore((s) => s.riskState);
@@ -54,7 +60,7 @@ export function AppNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-aegis-border bg-aegis-bg/95 backdrop-blur-sm">
       <div className="flex items-center justify-between px-4 py-2.5 sm:px-6">
-        {/* Left — logo only */}
+        {/* Left — logo */}
         <div className="flex items-center gap-2">
           <img
             src="/aegis.png"

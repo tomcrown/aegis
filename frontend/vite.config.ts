@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   define: {
-    "global": "globalThis",
+    global: "globalThis",
   },
   test: {
     environment: "node",

@@ -9,7 +9,6 @@ import { onboardingApi } from "@/services/api";
 import { canonical_json_ts } from "@/lib/signing";
 import { clearReferralCode } from "@/lib/fuul";
 import type { JsonValue } from "@/lib/signing";
-import { useSignMessage } from "@privy-io/react-auth"; // ← add this
 
 const BUILDER_CODE = "AEGIS";
 const MAX_FEE_RATE = "0.0005";
@@ -84,26 +83,28 @@ export function OnboardingFlow({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { address, signMessage } = useSolanaWallet();
-  const { signMessage: privySignMessage } = useSignMessage(); // ← Privy v3 hook
 
   async function sign(
     payloadToSign: Record<string, JsonValue>,
   ): Promise<string> {
-    const message = canonical_json_ts(payloadToSign);
-
-    // Path 1: native wallet adapter (Phantom etc.) — signs raw bytes
-    if (signMessage) {
+    if (!signMessage) {
+      // Fallback: try window.solana directly
+      const solana = (window as any).solana;
+      if (!solana?.isConnected) throw new Error("Wallet not connected");
+      const message = canonical_json_ts(payloadToSign);
       const encoded = new TextEncoder().encode(message);
-      const result = await signMessage(encoded);
+      const { signature } = await solana.signMessage(encoded, "utf8");
       const { default: bs58 } = await import("bs58");
-      return bs58.encode(result);
+      return bs58.encode(signature);
     }
 
-    // Path 2: Privy v3 embedded wallet — takes string, returns string signature
-    const { signature } = await privySignMessage({ message });
-    return signature;
+    const message = canonical_json_ts(payloadToSign);
+    const encoded = new TextEncoder().encode(message);
+    const result = await signMessage(encoded);
+    const { default: bs58 } = await import("bs58");
+    return bs58.encode(result);
   }
-  // approveBuilderCode and bindAgentKey: cast payload to Record<string, JsonValue>
+
   async function approveBuilderCode() {
     if (!address) return;
     setLoading(true);
@@ -158,6 +159,7 @@ export function OnboardingFlow({
       setLoading(false);
     }
   }
+
   function completeOnboarding() {
     localStorage.setItem("aegis:onboarded", "true");
     clearReferralCode();

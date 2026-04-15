@@ -1,29 +1,43 @@
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useWallets } from "@privy-io/react-auth";
+import { useEffect, useState } from "react";
 
 export function useSolanaWallet() {
-  const { publicKey, connected, signMessage: adapterSignMessage } = useWallet();
-  const { wallets: privyWallets } = useWallets();
+  const { publicKey, connected, signMessage } = useWallet();
+  const [phantomAddress, setPhantomAddress] = useState<string>("");
 
+  useEffect(() => {
+    const solana = (window as any).solana;
+    if (!solana) return;
+
+    // Already connected (e.g. page refresh)
+    if (solana.isConnected && solana.publicKey) {
+      setPhantomAddress(solana.publicKey.toBase58());
+    }
+
+    const onConnect = () => {
+      if (solana.publicKey) setPhantomAddress(solana.publicKey.toBase58());
+    };
+    const onDisconnect = () => setPhantomAddress("");
+
+    solana.on("connect", onConnect);
+    solana.on("disconnect", onDisconnect);
+    return () => {
+      solana.off("connect", onConnect);
+      solana.off("disconnect", onDisconnect);
+    };
+  }, []);
+
+  // Wallet adapter takes priority if connected through it
   if (connected && publicKey) {
     return {
       address: publicKey.toBase58(),
-      wallet: null,
-      signMessage: adapterSignMessage,
+      signMessage,
     };
   }
 
-  // Privy v3 types wallets as Ethereum-only but the embedded Solana wallet
-  // is present at runtime — cast through unknown to access it
-  const allWallets = privyWallets as unknown as {
-    address: string;
-    chainType?: string;
-  }[];
-  const privySolana = allWallets.find((w) => w.chainType === "solana") ?? null;
-
+  // Fallback: direct window.solana connection
   return {
-    address: privySolana?.address ?? "",
-    wallet: privySolana,
+    address: phantomAddress,
     signMessage: undefined,
   };
 }

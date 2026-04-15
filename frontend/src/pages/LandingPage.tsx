@@ -4,8 +4,7 @@
  * Sections: scroll-reveal animations via IntersectionObserver
  */
 import { useEffect, useRef, useState } from "react";
-import { useLogin } from "@privy-io/react-auth";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { usePhantomConnect } from "@/hooks/usePhantomConnect";
 
 // ── useInView hook ────────────────────────────────────────────────────────────
 function useInView(options?: IntersectionObserverInit) {
@@ -351,10 +350,23 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function LandingPage() {
-  const { login } = useLogin();
-  const { setVisible } = useWalletModal();
+export default function LandingPage({ onConnect }: { onConnect: () => void }) {
   const [heroVisible, setHeroVisible] = useState(false);
+
+  const handleConnect = async () => {
+    const solana = (window as any).solana;
+    if (!solana?.isPhantom) {
+      alert("Phantom wallet not found. Please install it from phantom.app");
+      return;
+    }
+    try {
+      await solana.connect();
+      sessionStorage.setItem("aegis:connected", "true");
+      onConnect(); // ← triggers App to swap to dashboard
+    } catch (err) {
+      console.error("Phantom connect failed", err);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setHeroVisible(true), 80);
@@ -381,13 +393,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={login}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-aegis-muted transition hover:text-aegis-text"
-            >
-              Email Login
-            </button>
-            <button
-              onClick={() => setVisible(true)}
+              onClick={() => void handleConnect()}
               className="btn-primary py-2 text-sm"
             >
               Launch App
@@ -476,16 +482,10 @@ export default function LandingPage() {
             }}
           >
             <button
-              onClick={() => setVisible(true)}
+              onClick={() => void handleConnect()}
               className="btn-primary px-8 py-3.5 text-base"
             >
               Activate Protection — It's Free
-            </button>
-            <button
-              onClick={login}
-              className="btn-secondary px-8 py-3.5 text-base"
-            >
-              Continue with Email
             </button>
           </div>
         </div>
@@ -649,13 +649,10 @@ export default function LandingPage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
-              onClick={() => setVisible(true)}
+              onClick={() => void handleConnect()}
               className="btn-primary px-8 py-3.5"
             >
               Connect Wallet
-            </button>
-            <button onClick={login} className="btn-secondary px-8 py-3.5">
-              Continue with Email
             </button>
           </div>
         </RevealSection>

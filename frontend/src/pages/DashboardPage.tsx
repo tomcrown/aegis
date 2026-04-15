@@ -1,12 +1,6 @@
-/**
- * Main authenticated shell — multi-page navigation.
- * Pages: Overview | Protection | Intelligence | Vault
- */
 import { useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
-import { AppSidebar } from "@/components/layout/AppSidebar"; // ← add this
-
+import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppNav, type AppPage } from "@/components/layout/AppNav";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useAegisWebSocket } from "@/hooks/useAegisWebSocket";
@@ -21,13 +15,16 @@ import ProtectionPage from "@/pages/ProtectionPage";
 import IntelligencePage from "@/pages/IntelligencePage";
 import VaultPage from "@/pages/VaultPage";
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  onDisconnect,
+}: {
+  onDisconnect: () => void;
+}) {
   const [page, setPage] = useState<AppPage>("overview");
   const [onboarded, setOnboarded] = useState(
     () => localStorage.getItem("aegis:onboarded") === "true",
   );
 
-  usePrivy();
   const { address } = useSolanaWallet();
   const walletAddress = address || null;
 
@@ -78,11 +75,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-aegis-bg">
-      <AppNav />
-
+      <AppNav onDisconnect={onDisconnect} />
       <div className="flex flex-1">
         <AppSidebar page={page} onNavigate={setPage} />
-
         <main className="flex-1 px-6 py-6">
           {page === "overview" && <OverviewPage />}
           {page === "protection" && <ProtectionPage />}

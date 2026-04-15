@@ -1,15 +1,7 @@
-/**
- * Unauthenticated landing.
- * Two login paths:
- *   1. Email / Twitter → Privy (creates embedded Solana wallet)
- *   2. Connect Wallet → native Solana wallet adapter (Phantom, Solflare, Backpack)
- */
-import { useLogin } from "@privy-io/react-auth";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { usePhantomConnect } from "@/hooks/usePhantomConnect";
 
 export default function ConnectPage() {
-  const { login } = useLogin();
-  const { setVisible } = useWalletModal();
+  const { connectPhantom } = usePhantomConnect();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-aegis-bg px-4">
@@ -42,29 +34,13 @@ export default function ConnectPage() {
         ))}
       </div>
 
-      {/* Login options */}
+      {/* Connect */}
       <div className="flex w-full max-w-sm flex-col gap-3">
-        {/* Primary: native Solana wallet (Phantom, Solflare, Backpack) */}
         <button
-          onClick={() => setVisible(true)}
+          onClick={() => void connectPhantom()}
           className="w-full rounded-xl bg-aegis-accent px-8 py-3.5 font-semibold text-white transition hover:opacity-90"
         >
           Connect Wallet
-        </button>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-aegis-border" />
-          <span className="text-xs text-aegis-muted">or</span>
-          <div className="h-px flex-1 bg-aegis-border" />
-        </div>
-
-        {/* Secondary: email / Twitter via Privy */}
-        <button
-          onClick={login}
-          className="w-full rounded-xl border border-aegis-border bg-aegis-surface px-8 py-3.5 font-semibold text-white transition hover:border-aegis-accent/50 hover:bg-aegis-surface/80"
-        >
-          Continue with Email
         </button>
       </div>
 
