@@ -137,9 +137,11 @@ class ElfaClient:
     async def _record_sentiment_history(self, symbol: str, score: float) -> None:
         """Maintain a rolling 60-reading sentiment score history per symbol."""
         key = _SENTIMENT_HIST_KEY.format(symbol=symbol.upper())
-        await self._redis.lpush(key, score)
-        await self._redis.ltrim(key, 0, _SENTIMENT_HIST_LEN - 1)
-        await self._redis.expire(key, 7200)  # 2h TTL
+        pipe = self._redis.pipeline()
+        pipe.lpush(key, score)
+        pipe.ltrim(key, 0, _SENTIMENT_HIST_LEN - 1)
+        pipe.expire(key, 7200)  # 2h TTL
+        await pipe.execute()
 
     async def get_sentiment_history(self, symbol: str) -> list[float]:
         """Return last N sentiment scores for sparkline rendering."""

@@ -51,7 +51,13 @@ _ELFA_POLL_INTERVAL_S = 60.0    # 60s sentiment refresh
 _MACRO_POLL_INTERVAL_S = 1800.0 # 30 min macro context
 _CRASH_CHECK_INTERVAL_S = 300.0 # 5 min crash keyword check
 _HEDGE_STALE_GRACE_S = 60  # don't clear a hedge placed less than 60s ago
-_MIN_HEDGE_NOTIONAL_USD = Decimal("10.00") 
+_MIN_HEDGE_NOTIONAL_USD = Decimal("10.00")
+
+_ACTIVE_USERS_CACHE_TTL_S = 10.0   # re-fetch active users from Redis every 10s
+_USER_THRESHOLD_CACHE_TTL_S = 60.0  # re-fetch user threshold from Redis every 60s
+_SPARKLINE_FLUSH_INTERVAL_S = 30.0  # flush in-memory sparkline buffer to Redis every 30s
+_SPARKLINE_MAX_LEN = 60             # keep last 60 readings
+_SPARKLINE_TTL_S = 300              # Redis TTL for sparkline key
 
 
 class Orchestrator:
@@ -78,6 +84,13 @@ class Orchestrator:
         # Cache last good account info per wallet — used as fallback during Pacifica 5xx
         self._account_cache: dict[str, object] = {}
         self._consecutive_failures: dict[str, int] = {}
+        # In-memory caches to reduce Redis commands on hot paths
+        self._active_users_cache: set[str] = set()
+        self._active_users_cache_ts: float = 0.0
+        self._threshold_cache: dict[str, int] = {}
+        self._threshold_cache_ts: dict[str, float] = {}
+        # Sparkline buffer — flushed to Redis every 30s instead of every loop tick
+        self._sparkline_buf: dict[str, list[float]] = {}
 
     async def start(self) -> None:
         self._tasks = [
@@ -85,6 +98,7 @@ class Orchestrator:
             asyncio.create_task(self._elfa_poll_loop(), name="elfa_poller"),
             asyncio.create_task(self._macro_poll_loop(), name="macro_poller"),
             asyncio.create_task(self._risk_loop(), name="risk_loop"),
+            asyncio.create_task(self._sparkline_flush_loop(), name="sparkline_flusher"),
         ]
         log.info("Orchestrator started — %d tasks running", len(self._tasks))
 
@@ -111,7 +125,7 @@ class Orchestrator:
 
     async def _refresh_elfa_sentiment(self) -> None:
         """Collect active symbols, batch-fetch sentiment, detect deterioration."""
-        active_users = await self._vault.get_active_users()
+        active_users = await self._get_active_users_cached()
         if not active_users:
             return
 
@@ -206,8 +220,47 @@ class Orchestrator:
                 log.error("Risk loop unhandled error: %s", exc, exc_info=True)
             await asyncio.sleep(_RISK_POLL_INTERVAL_S)
 
+    def invalidate_threshold_cache(self, wallet: str) -> None:
+        """Call this after a user updates their threshold so the cache is refreshed immediately."""
+        self._threshold_cache_ts.pop(wallet, None)
+
+    async def _get_active_users_cached(self) -> set[str]:
+        """Return active users from memory; refresh from Redis every 10s."""
+        now = time.monotonic()
+        if now - self._active_users_cache_ts >= _ACTIVE_USERS_CACHE_TTL_S:
+            self._active_users_cache = await self._vault.get_active_users()
+            self._active_users_cache_ts = now
+        return self._active_users_cache
+
+    async def _get_user_threshold_cached(self, wallet: str) -> int:
+        """Return user threshold from memory; refresh from Redis every 60s."""
+        now = time.monotonic()
+        if now - self._threshold_cache_ts.get(wallet, 0.0) >= _USER_THRESHOLD_CACHE_TTL_S:
+            self._threshold_cache[wallet] = await self._vault.get_user_threshold(wallet)
+            self._threshold_cache_ts[wallet] = now
+        return self._threshold_cache[wallet]
+
+    async def _sparkline_flush_loop(self) -> None:
+        """Flush in-memory sparkline buffers to Redis every 30s."""
+        while True:
+            await asyncio.sleep(_SPARKLINE_FLUSH_INTERVAL_S)
+            try:
+                for wallet, buf in list(self._sparkline_buf.items()):
+                    if not buf:
+                        continue
+                    spark_key = f"aegis:sparkline:{wallet}"
+                    pipe = self._redis.pipeline()
+                    pipe.delete(spark_key)
+                    pipe.lpush(spark_key, *buf)
+                    pipe.expire(spark_key, _SPARKLINE_TTL_S)
+                    await pipe.execute()
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                log.warning("Sparkline flush error: %s", exc)
+
     async def _evaluate_all_users(self) -> None:
-        active_users = await self._vault.get_active_users()
+        active_users = await self._get_active_users_cached()
         if not active_users:
             return
         await asyncio.gather(
@@ -266,7 +319,7 @@ class Orchestrator:
 
         for pos in positions:
             try:
-                mp_raw = await self._ws_monitor.get_mark_price(pos.symbol)
+                mp_raw = self._ws_monitor.get_mark_price(pos.symbol)
                 mark = float(mp_raw) if mp_raw else float(pos.entry_price)
                 mark_prices[pos.symbol] = mark
             except Exception:
@@ -339,7 +392,7 @@ class Orchestrator:
             except Exception as exc:
                 log.debug("Stale hedge check failed for %s: %s", wallet, exc)
 
-        user_threshold = await self._vault.get_user_threshold(wallet)
+        user_threshold = await self._get_user_threshold_cached(wallet)
 
         output = risk_engine.evaluate(
             account=snapshot,
@@ -348,11 +401,11 @@ class Orchestrator:
             user_hedge_threshold=user_threshold,
         )
 
-        # Store sparkline history (last 60 readings)
-        spark_key = f"aegis:sparkline:{wallet}"
-        await self._redis.lpush(spark_key, cross_mmr_pct)
-        await self._redis.ltrim(spark_key, 0, 59)
-        await self._redis.expire(spark_key, 300)
+        # Buffer sparkline reading in-memory — flushed to Redis every 30s
+        buf = self._sparkline_buf.setdefault(wallet, [])
+        buf.insert(0, cross_mmr_pct)
+        if len(buf) > _SPARKLINE_MAX_LEN:
+            del buf[_SPARKLINE_MAX_LEN:]
 
         # Push mmr_update to frontend
         await ws_manager.broadcast(wallet, {
@@ -370,7 +423,7 @@ class Orchestrator:
         # ── Open hedges ────────────────────────────────────────────────────────
         for hedge in output.hedges_to_open:
             try:
-                mark_price = await self._ws_monitor.get_mark_price(hedge.symbol)
+                mark_price = self._ws_monitor.get_mark_price(hedge.symbol)
 
                 # Guard: skip if USD notional is below Pacifica's minimum
                 if mark_price:

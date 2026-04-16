@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 _TVL_KEY = "aegis:vault:tvl"
 _SHARE_KEY = "aegis:vault:shares:{wallet}"
 _HEDGE_KEY = "aegis:vault:hedges:{wallet}:{symbol}"
+_HEDGE_INDEX_KEY = "aegis:vault:hedge_index:{wallet}"  # SET of active hedge symbols
 _USERS_ACTIVE_KEY = "aegis:users:active"
 _USER_CONFIG_KEY = "aegis:users:config:{wallet}"
 
@@ -165,13 +166,15 @@ class VaultManager:
     ) -> None:
         """Record an active hedge order in Redis."""
         key = _HEDGE_KEY.format(wallet=wallet, symbol=symbol)
-        # Store as JSON with timestamp so stale check can respect grace period
-        await self._redis.set(key, json.dumps({
-            "order_id": order_id,
-            "placed_at": int(time.time()),
-        }))
+        index_key = _HEDGE_INDEX_KEY.format(wallet=wallet)
+        hedge_data = json.dumps({"order_id": order_id, "placed_at": int(time.time())})
 
-        # Increment active hedges on user share
+        pipe = self._redis.pipeline()
+        pipe.set(key, hedge_data)
+        pipe.sadd(index_key, symbol)
+        # Also update active_hedges count on the share
+        await pipe.execute()
+
         raw = await self._redis.get(_SHARE_KEY.format(wallet=wallet))
         if raw:
             share = VaultShare.model_validate_json(raw)
@@ -181,16 +184,22 @@ class VaultManager:
         log.info("Vault: hedge recorded wallet=%s symbol=%s order_id=%d", wallet, symbol, order_id)
 
     async def get_active_hedges(self, wallet: str) -> dict[str, int]:
-        pattern = _HEDGE_KEY.format(wallet=wallet, symbol="*")
-        keys = await self._redis.keys(pattern)
-        result: dict[str, int] = {}
+        index_key = _HEDGE_INDEX_KEY.format(wallet=wallet)
+        symbols = await self._redis.smembers(index_key)  # type: ignore[misc]
+        if not symbols:
+            return {}
+
+        keys = [_HEDGE_KEY.format(wallet=wallet, symbol=s) for s in symbols]
+        pipe = self._redis.pipeline()
         for key in keys:
-            symbol = key.split(":")[-1]
-            raw = await self._redis.get(key)
+            pipe.get(key)
+        values = await pipe.execute()
+
+        result: dict[str, int] = {}
+        for symbol, raw in zip(symbols, values):
             if raw:
                 try:
                     data = json.loads(raw)
-                    # Support both old format (plain int string) and new format (JSON)
                     if isinstance(data, dict):
                         result[symbol] = data["order_id"]
                     else:
@@ -202,7 +211,12 @@ class VaultManager:
     async def clear_hedge(self, wallet: str, symbol: str) -> None:
         """Remove a closed hedge from Redis."""
         key = _HEDGE_KEY.format(wallet=wallet, symbol=symbol)
-        await self._redis.delete(key)
+        index_key = _HEDGE_INDEX_KEY.format(wallet=wallet)
+
+        pipe = self._redis.pipeline()
+        pipe.delete(key)
+        pipe.srem(index_key, symbol)
+        await pipe.execute()
 
         # Decrement active hedges on user share
         raw = await self._redis.get(_SHARE_KEY.format(wallet=wallet))

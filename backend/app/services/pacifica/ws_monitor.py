@@ -36,9 +36,6 @@ log = logging.getLogger(__name__)
 _PING_INTERVAL_S = 30
 _RECONNECT_BASE_S = 1.0
 _RECONNECT_MAX_S = 60.0
-_PRICE_TTL_S = 30
-
-REDIS_PRICE_KEY = "aegis:prices:{symbol}"
 
 
 def _backoff(attempt: int) -> float:
@@ -55,6 +52,7 @@ class PacificaWsMonitor:
     def __init__(self, redis: "aioredis.Redis") -> None:
         self._redis = redis
         self._stop_event = asyncio.Event()
+        self._prices: dict[str, str] = {}  # symbol → mark price string (in-memory, no Redis)
         settings = get_settings()
         self._ws_url = settings.pacifica_ws_url
         if settings.pacifica_api_config_key:
@@ -150,19 +148,16 @@ class PacificaWsMonitor:
 
     async def _handle_prices(self, price_data: list[dict[str, Any]]) -> None:
         """
-        Cache each symbol's mark price in Redis.
-        Key: aegis:prices:{SYMBOL}  Value: mark price string  TTL: 30s
+        Cache each symbol's mark price in-process memory.
+        No Redis writes — prices are only needed within this process.
         """
-        pipe = self._redis.pipeline()
         for item in price_data:
             symbol: str = item.get("symbol", "")
             mark: str = item.get("mark", "")
             if symbol and mark:
-                key = REDIS_PRICE_KEY.format(symbol=symbol)
-                pipe.setex(key, _PRICE_TTL_S, mark)
-        await pipe.execute()
+                self._prices[symbol] = mark
 
-    async def get_mark_price(self, symbol: str) -> str | None:
-        """Retrieve the latest cached mark price for a symbol."""
-        return await self._redis.get(REDIS_PRICE_KEY.format(symbol=symbol))
+    def get_mark_price(self, symbol: str) -> str | None:
+        """Retrieve the latest cached mark price for a symbol (in-memory, no Redis)."""
+        return self._prices.get(symbol)
 

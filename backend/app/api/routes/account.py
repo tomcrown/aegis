@@ -133,6 +133,8 @@ async def update_threshold(
     await request.app.state.vault.update_user_threshold(
         wallet=body.wallet, threshold=body.threshold
     )
+    # Invalidate orchestrator's in-memory threshold cache so new value is used immediately
+    request.app.state.orchestrator.invalidate_threshold_cache(body.wallet)
     return {"wallet": body.wallet, "threshold": body.threshold}
 
 
@@ -184,7 +186,7 @@ async def demo_trigger_hedge(
     )
 
     ws_monitor = request.app.state.orchestrator._ws_monitor
-    mark_price = await ws_monitor.get_mark_price(position.symbol)
+    mark_price = ws_monitor.get_mark_price(position.symbol)
 
     order = await request.app.state.orchestrator._execution.open_hedge(
         decision, mark_price=mark_price
