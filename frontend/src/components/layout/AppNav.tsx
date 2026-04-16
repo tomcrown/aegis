@@ -12,21 +12,15 @@ export function AppNav({ onDisconnect }: { onDisconnect: () => void }) {
   async function handleDisconnect() {
     sessionStorage.removeItem("aegis:connected");
 
-    // Disconnect wallet adapter
     try {
       await disconnect();
     } catch {
-      /* not connected via adapter */
       onDisconnect();
     }
-    // Also disconnect direct window.solana connection
     try {
       const solana = (window as any).solana;
       if (solana?.isConnected) await solana.disconnect();
-    } catch {
-      /* ignore */
-    }
-    // Force page reload so App re-evaluates auth state cleanly
+    } catch {}
     window.location.reload();
   }
 

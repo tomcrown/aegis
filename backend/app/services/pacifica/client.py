@@ -75,7 +75,6 @@ class PacificaClient:
             timeout=httpx.Timeout(10.0, connect=5.0),
         )
 
-    # ── Internal request helpers ──────────────────────────────────────────────
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         return await self._request("GET", path, params=params)
@@ -132,7 +131,6 @@ class PacificaClient:
 
         raise PacificaError(0, f"Max retries ({_MAX_RETRIES}) exceeded for {path}")
 
-    # ── Response unwrapping ───────────────────────────────────────────────────
 
     @staticmethod
     def _unwrap(raw: Any) -> Any:
@@ -144,7 +142,6 @@ class PacificaClient:
             return raw.get("data")
         return raw
 
-    # ── Cache helper ──────────────────────────────────────────────────────────
 
     async def _cached_get(
         self,
@@ -172,7 +169,6 @@ class PacificaClient:
 
         return result
 
-    # ── Account ───────────────────────────────────────────────────────────────
 
     async def get_account_info(self, wallet: str) -> AccountInfo:
         raw = await self._cached_get(
@@ -196,7 +192,6 @@ class PacificaClient:
             return [Position.model_validate(p) for p in data]
         return []
 
-    # ── Market data ───────────────────────────────────────────────────────────
 
     async def get_market_info(self) -> dict[str, MarketInfo]:
         """Returns a dict keyed by symbol."""
@@ -209,7 +204,6 @@ class PacificaClient:
             result[info.symbol] = info
         return result
 
-    # ── Orders ────────────────────────────────────────────────────────────────
 
     async def create_market_order(self, payload: dict[str, Any]) -> OrderResponse:
         """
@@ -259,7 +253,6 @@ class PacificaClient:
         log.debug("create_stop_order raw response: %s", raw)
         return OrderResponse.model_validate(self._unwrap(raw))
 
-    # ── Builder ───────────────────────────────────────────────────────────────
 
     async def approve_builder_code(self, signed_payload: dict[str, Any]) -> dict[str, Any]:
         """
@@ -301,7 +294,6 @@ class PacificaClient:
     
     
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     async def close(self) -> None:
         await self._client.aclose()

@@ -40,7 +40,6 @@ export function useAegisWebSocket(wallet: string | null): void {
 
       ws.onopen = () => {
         attemptRef.current = 0;
-        // Start heartbeat
         pingRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send("ping");
         }, PING_INTERVAL_MS);
@@ -51,7 +50,7 @@ export function useAegisWebSocket(wallet: string | null): void {
         try {
           event = JSON.parse(evt.data) as WsEvent;
         } catch {
-          return; // pong or malformed — ignore
+          return;
         }
         handleEvent(event);
       };
@@ -71,7 +70,6 @@ export function useAegisWebSocket(wallet: string | null): void {
     function handleEvent(event: WsEvent) {
       switch (event.type) {
         case "mmr_update": {
-          // Dev mode overrides the store — don't let real WS data clobber it
           if (devModeRef.current) break;
           const payload = event.payload as {
             cross_mmr_pct: number;

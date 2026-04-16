@@ -1,6 +1,3 @@
-/**
- * Positions table — live open positions with liquidation distance.
- */
 import { useQuery } from "@tanstack/react-query";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { accountApi } from "@/services/api";

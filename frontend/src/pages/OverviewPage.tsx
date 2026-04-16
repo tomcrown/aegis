@@ -1,7 +1,3 @@
-/**
- * Overview page — the one-glance dashboard.
- * Plain English labels, no jargon.
- */
 import { useQuery } from "@tanstack/react-query";
 import { useAegisStore } from "@/stores/useAegisStore";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
@@ -24,7 +20,6 @@ function SafetyScoreCard() {
   const isHedge = riskState.tier === "hedge";
   const isWatch = riskState.tier === "watch";
 
-  // Safety margin = how far from triggering auto-hedge
   const marginRatio = 200 - riskState.crossMmrPct;
   const triggerAt = 200 - riskState.threshold;
   const safetyBuffer = Math.max(0, marginRatio - triggerAt);

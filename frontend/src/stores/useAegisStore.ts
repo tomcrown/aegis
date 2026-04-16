@@ -1,8 +1,11 @@
-/**
- * Global Zustand store — Aegis operational state.
- */
 import { create } from "zustand";
-import type { ActivityEvent, DevModeState, Position, RiskState, SentimentData } from "@/types";
+import type {
+  ActivityEvent,
+  DevModeState,
+  Position,
+  RiskState,
+  SentimentData,
+} from "@/types";
 
 interface AegisStore {
   riskState: RiskState;
@@ -14,11 +17,9 @@ interface AegisStore {
   sentimentMap: Record<string, SentimentData>;
   setSentiment: (s: SentimentData) => void;
 
-  // Live mark prices from WS — symbol → price
   markPrices: Record<string, number>;
   setMarkPrices: (p: Record<string, number>) => void;
 
-  // Activity log — last 50 WS events for Protection page history
   activityLog: ActivityEvent[];
   addActivity: (e: ActivityEvent) => void;
 
@@ -59,6 +60,5 @@ export const useAegisStore = create<AegisStore>((set) => ({
     enabled: false,
     simulatedPriceDrop: 4,
   },
-  setDevMode: (d) =>
-    set((prev) => ({ devMode: { ...prev.devMode, ...d } })),
+  setDevMode: (d) => set((prev) => ({ devMode: { ...prev.devMode, ...d } })),
 }));

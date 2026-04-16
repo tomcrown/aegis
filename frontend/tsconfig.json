@@ -12,7 +12,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Strict mode — no exceptions */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -20,7 +19,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path aliases */
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

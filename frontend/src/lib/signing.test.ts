@@ -1,7 +1,3 @@
-/**
- * Tests for canonical_json_ts() — must mirror the Python backend's
- * canonical_json() exactly so both sides produce identical signing messages.
- */
 import { describe, expect, it } from "vitest";
 
 import { canonical_json_ts } from "./signing";
@@ -22,7 +18,6 @@ describe("canonical_json_ts", () => {
     const result = canonical_json_ts({
       stop_order: { stop_price: "154.5", amount: "0.075" },
     });
-    // "amount" sorts before "stop_price" at nested level
     const inner = result.indexOf('"amount"');
     const stop = result.indexOf('"stop_price"');
     expect(inner).toBeLessThan(stop);
@@ -74,10 +69,8 @@ describe("canonical_json_ts", () => {
     };
     const result = canonical_json_ts(payload);
     const parsed = JSON.parse(result);
-    // Keys must be sorted
     const keys = Object.keys(parsed);
     expect(keys).toEqual([...keys].sort());
-    // Critical fields preserved
     expect(parsed.builder_code).toBe("AEGIS");
     expect(parsed.amount).toBe("0.075");
     expect(parsed.reduce_only).toBe(false);

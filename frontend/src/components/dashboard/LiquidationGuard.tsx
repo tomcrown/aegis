@@ -1,7 +1,3 @@
-/**
- * Liquidation Guard — shows liquidation price, USD distance, and safety buffer bar per position.
- * Updates in real-time via positions refetch.
- */
 import { useQuery } from "@tanstack/react-query";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { useAegisStore } from "@/stores/useAegisStore";
@@ -18,7 +14,6 @@ function fmt(n: string, decimals = 2) {
 function GuardRow({ pos, markPrice }: { pos: Position; markPrice?: number }) {
   const entry = parseFloat(pos.entry_price);
   const liq = parseFloat(pos.liquidation_price || "0");
-  // Use live mark price if available, fall back to entry
   const current = markPrice ?? entry;
 
   const distPct =
@@ -137,7 +132,7 @@ export function LiquidationGuard() {
     queryKey: ["positions", address],
     queryFn: () => accountApi.getPositions(address),
     enabled: !!address,
-    refetchInterval: 10_000, // positions are fairly static; mark prices come via WS
+    refetchInterval: 10_000,
   });
 
   return (

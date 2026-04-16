@@ -22,7 +22,6 @@ const queryClient = new QueryClient({
 function Root() {
   const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
 
-  // Empty array — Phantom (and any other Standard Wallet) registers itself
   const wallets = useMemo(() => [], []);
 
   return (

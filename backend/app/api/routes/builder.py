@@ -14,7 +14,6 @@ async def builder_trades(
     request: Request,
     limit: int = Query(default=100, le=500),
 ) -> list[BuilderTrade]:
-    """All trades attributed to builder_code=AEGIS on Pacifica."""
     return await request.app.state.pacifica.get_builder_trades(
         settings.builder_code, limit=limit
     )

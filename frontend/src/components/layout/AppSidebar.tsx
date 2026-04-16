@@ -1,6 +1,3 @@
-/**
- * Left sidebar — page navigation.
- */
 import {
   LayoutDashboard,
   ShieldCheck,

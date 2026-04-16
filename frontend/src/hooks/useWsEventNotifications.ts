@@ -1,10 +1,3 @@
-/**
- * Listens to the custom aegis:ws-event DOM event and renders
- * toast notifications for hedge_opened, hedge_closed, and alert events.
- *
- * Uses a simple in-DOM approach to avoid adding a toast library dependency.
- */
-
 import { useEffect } from "react";
 import type { WsEvent } from "@/types";
 
@@ -17,7 +10,11 @@ export function useWsEventNotifications(): void {
 
       switch (event.type) {
         case "hedge_opened": {
-          const p = event.payload as { symbol: string; amount: string; side: string };
+          const p = event.payload as {
+            symbol: string;
+            amount: string;
+            side: string;
+          };
           message = `Hedge opened: ${p.amount} ${p.symbol} ${p.side}`;
           bgClass = "bg-aegis-red/10 border-aegis-red/30";
           break;
@@ -38,13 +35,11 @@ export function useWsEventNotifications(): void {
           return;
       }
 
-      // Create and inject a toast element
       const toast = document.createElement("div");
       toast.className = `fixed bottom-4 right-4 z-50 rounded-xl border px-4 py-3 text-sm text-white shadow-lg transition-opacity duration-300 ${bgClass}`;
       toast.textContent = message;
       document.body.appendChild(toast);
 
-      // Auto-remove after 4 seconds
       setTimeout(() => {
         toast.style.opacity = "0";
         setTimeout(() => toast.remove(), 300);

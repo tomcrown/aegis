@@ -1,11 +1,4 @@
-"""
-Generate a Pacifica API Config Key using the Aegis agent key.
 
-Run from the backend directory:
-  python gen_api_key.py
-
-The generated key will be printed — copy it into .env as PACIFICA_API_CONFIG_KEY=...
-"""
 import asyncio
 import json
 import time
@@ -15,7 +8,6 @@ import httpx
 import redis.asyncio as aioredis
 from cryptography.fernet import Fernet
 
-# ── Load config from .env ─────────────────────────────────────────────────────
 import os
 from dotenv import load_dotenv
 
@@ -39,7 +31,6 @@ def canonical_json(payload: dict) -> str:
 
 
 async def main():
-    # ── Load agent keypair from Redis ─────────────────────────────────────────
     r = aioredis.from_url(REDIS_URL, decode_responses=False)
     encrypted = await r.get("aegis:agent_key:encrypted")
     await r.aclose()
@@ -56,14 +47,13 @@ async def main():
     pubkey = str(keypair.pubkey())
     print(f"Agent wallet: {pubkey}")
 
-    # ── Build and sign the create_api_key request ─────────────────────────────
     timestamp = int(time.time() * 1000)
     header = {
         "type": "create_api_key",
         "timestamp": timestamp,
         "expiry_window": 30_000,
     }
-    payload = {}   # empty for create
+    payload = {}   
 
     message_dict = {**header, "data": payload}
     message = canonical_json(message_dict)

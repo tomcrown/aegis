@@ -1,8 +1,3 @@
-/**
- * Animated SVG ring meter for cross_mmr display.
- * Danger scale: 0 = perfectly safe, 100 = liquidation.
- */
-
 interface RingMeterProps {
   pct: number;
   size?: number;

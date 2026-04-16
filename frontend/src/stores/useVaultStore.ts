@@ -1,7 +1,3 @@
-/**
- * Vault global state — kept separate from Aegis operational state
- * because it has a different polling cadence and update pattern.
- */
 import { create } from "zustand";
 import type { VaultShare, VaultState } from "@/types";
 

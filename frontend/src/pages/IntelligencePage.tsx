@@ -1,8 +1,3 @@
-/**
- * Intelligence page — all 8 Elfa AI features.
- * Macro context, narratives, trending CAs, per-symbol news, crash alerts,
- * sentiment history sparklines, smart money info.
- */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
@@ -44,7 +39,6 @@ function SectionHeader({
 function MacroContextCard({ context }: { context: string }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Extract TL;DR line (first line starting with # or before first ---)
   const tldrMatch = context.match(/^#[^#](.+?)(?=\n---|\n##|$)/s);
   const tldr = tldrMatch ? tldrMatch[1].trim() : "";
   const hasTldr = tldr.length > 0;
@@ -134,7 +128,6 @@ function NarrativesCard({ narratives }: { narratives: NarrativeItem[] }) {
       />
       <div className="space-y-3">
         {narratives.map((n, i) => {
-          // Elfa returns: {narrative: string, source_links: [...], tweet_ids: [...]}
           const title = String(
             n.narrative ?? n.title ?? n.summary ?? `Narrative ${i + 1}`,
           );
@@ -253,7 +246,6 @@ function TokenNewsCard({ symbol, news }: { symbol: string; news: NewsItem[] }) {
       </div>
       <div className="divide-y divide-aegis-border/40">
         {visible.map((item, i) => {
-          // Shape from backend: {link, author, timestamp, like_count, repost_count, view_count, smart_score, type}
           const link = String(item.link ?? item.url ?? "");
           const author = String(item.author ?? item.username ?? "unknown");
           const ts = item.timestamp ?? item.created_at ?? item.mentionedAt;
@@ -417,7 +409,6 @@ function PerSymbolSection({ snapshot }: { snapshot: IntelligenceSnapshot }) {
 }
 
 function TrendingTokensCard() {
-  // Use the trending-tokens endpoint (same one used for sentiment) — returns real token names
   const { data } = useQuery({
     queryKey: ["trending-tokens-intel"],
     queryFn: () =>

@@ -1,7 +1,4 @@
-"""
-Aegis — FastAPI application entry point.
-All route registration, lifespan management, and middleware configured here.
-"""
+
 from __future__ import annotations
 
 import logging
@@ -23,7 +20,6 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Startup and shutdown sequence."""
     log.info("Aegis backend starting — builder_code=%s", settings.builder_code)
 
     from app.services.pacifica.client import PacificaClient

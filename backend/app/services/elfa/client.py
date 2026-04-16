@@ -37,38 +37,30 @@ from app.models.risk import Sentiment, SentimentData
 
 log = logging.getLogger(__name__)
 
-# ── Sentiment ──────────────────────────────────────────────────────────────────
 _SENTIMENT_TTL = 65
 _SENTIMENT_KEY = "aegis:elfa:cache:{symbol}"
 _BEARISH_THRESHOLD = 35.0
 _BULLISH_THRESHOLD = 65.0
 
-# ── Keywords ───────────────────────────────────────────────────────────────────
 _KEYWORDS_TTL = 600      # 10 min
 _KEYWORDS_KEY = "aegis:elfa:keywords:{symbol}"
 CRASH_KEYWORDS = ["exploit", "hack", "rug", "depeg", "bankrupt", "liquidation cascade", "emergency", "drained"]
 
-# ── Narratives ─────────────────────────────────────────────────────────────────
 _NARRATIVES_TTL = 1800   # 30 min
 _NARRATIVES_KEY = "aegis:elfa:narratives"
 
-# ── Trending CAs ───────────────────────────────────────────────────────────────
 _TRENDING_CAS_TTL = 1800  # 30 min
 _TRENDING_CAS_KEY = "aegis:elfa:trending_cas:{platform}"
 
-# ── Token news ─────────────────────────────────────────────────────────────────
 _NEWS_TTL = 600           # 10 min
 _NEWS_KEY = "aegis:elfa:news:{symbol}"
 
-# ── Macro chat ─────────────────────────────────────────────────────────────────
 _MACRO_TTL = 1800         # 30 min
 _MACRO_KEY = "aegis:elfa:macro"
 
-# ── Smart stats ────────────────────────────────────────────────────────────────
 _SMART_STATS_TTL = 3600   # 1 hour
 _SMART_STATS_KEY = "aegis:elfa:smart_stats:{username}"
 
-# ── Sentiment history ──────────────────────────────────────────────────────────
 _SENTIMENT_HIST_KEY = "aegis:elfa:score_history:{symbol}"
 _SENTIMENT_HIST_LEN = 60  # keep last 60 readings
 
@@ -97,7 +89,6 @@ class ElfaClient:
             timeout=_httpx.Timeout(15.0),
         )
 
-    # ── 1. Per-symbol sentiment ────────────────────────────────────────────────
 
     async def get_sentiment(self, symbol: str) -> SentimentData:
         """Return sentiment for a single symbol (cache-first)."""
@@ -149,7 +140,6 @@ class ElfaClient:
         raw = await self._redis.lrange(key, 0, -1)
         return [float(v) for v in raw]
 
-    # ── 2. Keyword crash detection ─────────────────────────────────────────────
 
     async def check_crash_keywords(self, symbol: str) -> dict[str, Any]:
         """
@@ -202,7 +192,6 @@ class ElfaClient:
         await self._redis.setex(cache_key, _KEYWORDS_TTL, json.dumps(result))
         return result
 
-    # ── 3. Trending narratives ─────────────────────────────────────────────────
 
     async def get_trending_narratives(self) -> list[dict[str, Any]]:
         """
@@ -239,7 +228,6 @@ class ElfaClient:
         await self._redis.setex(_NARRATIVES_KEY, _NARRATIVES_TTL, json.dumps(narratives))
         return narratives
 
-    # ── 4 + 5. Trending CAs (Twitter + Telegram) ──────────────────────────────
 
     async def get_trending_cas(self, platform: str = "twitter") -> list[dict[str, Any]]:
         """
@@ -277,7 +265,6 @@ class ElfaClient:
         await self._redis.setex(cache_key, _TRENDING_CAS_TTL, json.dumps(cas))
         return cas
 
-    # ── 6. Token news ──────────────────────────────────────────────────────────
 
     async def get_token_news(self, symbol: str) -> list[dict[str, Any]]:
         """
@@ -332,7 +319,6 @@ class ElfaClient:
         await self._redis.setex(cache_key, _NEWS_TTL, json.dumps(news))
         return news
 
-    # ── 7. AI hedge narrative (tokenAnalysis) ─────────────────────────────────
 
     async def get_hedge_narrative(self, symbol: str, action: str, sentiment: str) -> str:
         """
@@ -373,7 +359,6 @@ class ElfaClient:
         await self._redis.setex(cache_key, 300, narrative)  # 5 min cache
         return narrative
 
-    # ── 8. Macro market context ────────────────────────────────────────────────
 
     async def get_macro_context(self) -> str:
         """
@@ -408,7 +393,6 @@ class ElfaClient:
         await self._redis.setex(_MACRO_KEY, _MACRO_TTL, context)
         return context
 
-    # ── 9. Smart money / account stats ────────────────────────────────────────
 
     async def get_smart_stats(self, username: str) -> dict[str, Any]:
         """
@@ -437,7 +421,6 @@ class ElfaClient:
         await self._redis.setex(cache_key, _SMART_STATS_TTL, json.dumps(stats))
         return stats
 
-    # ── Bulk intelligence snapshot ─────────────────────────────────────────────
 
     async def get_intelligence_snapshot(self, symbols: list[str]) -> dict[str, Any]:
         """
@@ -476,7 +459,6 @@ class ElfaClient:
             "timestamp_ms": int(time.time() * 1000),
         }
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
 
     async def _fetch_trending_tokens(self) -> list[dict]:
         """GET /v2/aggregations/trending-tokens — unwraps doubly-nested envelope."""

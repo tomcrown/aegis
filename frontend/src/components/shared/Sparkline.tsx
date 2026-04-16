@@ -1,26 +1,32 @@
-/**
- * SVG sparkline — shows last N cross_mmr readings as a line chart.
- * No gradients, no fills — just a clean line.
- */
-
 interface SparklineProps {
-  values: number[];  // raw cross_mmr values (e.g. 118.44) — we invert to danger scale
+  values: number[];
   width?: number;
   height?: number;
   color?: string;
 }
 
-export function Sparkline({ values, width = 200, height = 40, color }: SparklineProps) {
+export function Sparkline({
+  values,
+  width = 200,
+  height = 40,
+  color,
+}: SparklineProps) {
   if (!values || values.length < 2) {
     return (
       <svg width={width} height={height}>
-        <line x1="0" y1={height / 2} x2={width} y2={height / 2}
-          stroke="#1C2333" strokeWidth="1" strokeDasharray="4 4" />
+        <line
+          x1="0"
+          y1={height / 2}
+          x2={width}
+          y2={height / 2}
+          stroke="#1C2333"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+        />
       </svg>
     );
   }
 
-  // Convert to danger scale (200 - cross_mmr)
   const danger = values.map((v) => Math.max(0, Math.min(100, 200 - v)));
 
   const min = Math.min(...danger);
@@ -39,9 +45,9 @@ export function Sparkline({ values, width = 200, height = 40, color }: Sparkline
 
   const polyline = pts.join(" ");
 
-  // Color by latest value
   const latest = danger[0];
-  const lineColor = color ?? (latest >= 90 ? "#EF4444" : latest >= 80 ? "#F59E0B" : "#22C55E");
+  const lineColor =
+    color ?? (latest >= 90 ? "#EF4444" : latest >= 80 ? "#F59E0B" : "#22C55E");
 
   return (
     <svg width={width} height={height} className="overflow-visible">

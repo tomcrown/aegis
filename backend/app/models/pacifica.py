@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from pydantic import ConfigDict
 
 
-# ── Account ───────────────────────────────────────────────────────────────────
 
 class AccountInfo(BaseModel):
     model_config = ConfigDict(extra="ignore")   # ignore unknown Pacifica fields
@@ -51,7 +50,6 @@ class Position(BaseModel):
         return super().model_validate(obj, **kwargs)
 
 
-# ── Orders ────────────────────────────────────────────────────────────────────
 
 class OrderResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -64,7 +62,6 @@ class CancelOrderResponse(BaseModel):
     success: bool = True
 
 
-# ── Market info ───────────────────────────────────────────────────────────────
 
 class MarketInfo(BaseModel):
     symbol: str
@@ -77,8 +74,6 @@ class MarketInfo(BaseModel):
     funding_rate: str
     next_funding_rate: str
 
-
-# ── Builder ───────────────────────────────────────────────────────────────────
 
 class BuilderTrade(BaseModel):
     model_config = ConfigDict(extra="ignore")  # ignore any extra fields
@@ -99,7 +94,6 @@ class BuilderApproval(BaseModel):
     updated_at: int
 
 
-# ── Risk engine inputs ────────────────────────────────────────────────────────
 
 class AccountSnapshot(BaseModel):
     """Aggregated snapshot passed to the risk engine each cycle."""

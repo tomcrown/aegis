@@ -1,8 +1,3 @@
-/**
- * Post-login onboarding — two signing steps.
- * Step 1: Approve AEGIS builder code
- * Step 2: Authorize Agent Key
- */
 import { useState } from "react";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { onboardingApi } from "@/services/api";
@@ -88,7 +83,6 @@ export function OnboardingFlow({
     payloadToSign: Record<string, JsonValue>,
   ): Promise<string> {
     if (!signMessage) {
-      // Fallback: try window.solana directly
       const solana = (window as any).solana;
       if (!solana?.isConnected) throw new Error("Wallet not connected");
       const message = canonical_json_ts(payloadToSign);

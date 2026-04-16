@@ -46,11 +46,7 @@ async def get_intelligence_snapshot(
     wallet: str = Query(...),
     request: Request = None,
 ) -> dict:
-    """
-    Full intelligence snapshot for a wallet's active positions.
-    Includes macro, narratives, trending CAs, per-symbol news and crash alerts.
-    All data is Redis-cached — this is a fast aggregation call.
-    """
+   
     elfa = _get_elfa(request)
     pacifica = _get_pacifica(request)
 
@@ -71,7 +67,6 @@ async def get_intelligence_snapshot(
 
 @router.get("/narratives")
 async def get_narratives(request: Request) -> dict:
-    """Trending macro narratives — cached 30 min."""
     elfa = _get_elfa(request)
     narratives = await elfa.get_trending_narratives()
     return {"narratives": narratives}
@@ -79,7 +74,6 @@ async def get_narratives(request: Request) -> dict:
 
 @router.get("/macro")
 async def get_macro(request: Request) -> dict:
-    """AI macro market context — cached 30 min."""
     elfa = _get_elfa(request)
     context = await elfa.get_macro_context()
     return {"context": context}
@@ -90,7 +84,6 @@ async def get_trending_cas(
     platform: str = Query("twitter"),
     request: Request = None,
 ) -> dict:
-    """Trending contract addresses on Twitter or Telegram — cached 30 min."""
     elfa = _get_elfa(request)
     if platform not in ("twitter", "telegram"):
         raise HTTPException(400, "platform must be 'twitter' or 'telegram'")
@@ -103,7 +96,6 @@ async def get_token_news(
     symbol: str = Query(...),
     request: Request = None,
 ) -> dict:
-    """Token news feed — cached 10 min per symbol."""
     elfa = _get_elfa(request)
     news = await elfa.get_token_news(symbol.upper())
     return {"symbol": symbol.upper(), "news": news}
@@ -114,10 +106,7 @@ async def get_sentiment_history(
     symbol: str = Query(...),
     request: Request = None,
 ) -> dict:
-    """
-    Historical sentiment scores for sparkline rendering.
-    Scores recorded every 60s — up to 60 readings (1 hour).
-    """
+   
     elfa = _get_elfa(request)
     history = await elfa.get_sentiment_history(symbol.upper())
     return {"symbol": symbol.upper(), "scores": history}
@@ -125,11 +114,7 @@ async def get_sentiment_history(
 
 @router.get("/trending-named-tokens")
 async def get_trending_named_tokens(request: Request) -> dict:
-    """
-    Return trending tokens with their names/symbols (not contract addresses).
-    Reuses the same trending-tokens fetch already used for sentiment scoring.
-    Cached 65s (same TTL as sentiment).
-    """
+   
     elfa = _get_elfa(request)
     try:
         # Tap into the internal trending-tokens fetch — fully cached
@@ -164,7 +149,6 @@ async def crash_check(
     symbol: str = Query(...),
     request: Request = None,
 ) -> dict:
-    """Check crash/exploit keyword detection for a symbol — cached 10 min."""
     elfa = _get_elfa(request)
     result = await elfa.check_crash_keywords(symbol.upper())
     return result

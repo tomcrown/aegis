@@ -1,10 +1,3 @@
-/**
- * Shared TypeScript types for the Aegis frontend.
- * snake_case to exactly match backend wire format.
- */
-
-// ── Pacifica ──────────────────────────────────────────────────────────────────
-
 export interface AccountInfo {
   balance: string;
   account_equity: string;
@@ -28,8 +21,6 @@ export interface Position {
   updated_at: number;
 }
 
-// ── Risk ─────────────────────────────────────────────────────────────────────
-
 export type RiskTier = "safe" | "watch" | "hedge";
 
 export interface RiskState {
@@ -38,8 +29,6 @@ export interface RiskState {
   aegisActive: boolean;
   threshold: number;
 }
-
-// ── Elfa sentiment ────────────────────────────────────────────────────────────
 
 export const Sentiment = {
   BEARISH: "bearish",
@@ -55,8 +44,6 @@ export interface SentimentData {
   sentiment: SentimentLabel;
   raw_mentions?: number;
 }
-
-// ── Intelligence (Elfa v2 features) ──────────────────────────────────────────
 
 export interface NarrativeItem {
   title?: string;
@@ -106,8 +93,6 @@ export interface IntelligenceSnapshot {
   timestamp_ms: number;
 }
 
-// ── Vault ─────────────────────────────────────────────────────────────────────
-
 export interface VaultState {
   total_tvl: string;
   active_protections: number;
@@ -124,8 +109,6 @@ export interface VaultShare {
   joined_at_ms: number;
 }
 
-// ── WebSocket events ──────────────────────────────────────────────────────────
-
 export type WsEventType =
   | "mmr_update"
   | "hedge_opened"
@@ -139,16 +122,12 @@ export interface WsEvent {
   timestamp_ms: number;
 }
 
-// ── Activity log ──────────────────────────────────────────────────────────────
-
 export interface ActivityEvent {
   id: string;
   type: WsEventType;
   timestamp_ms: number;
   payload: Record<string, unknown>;
 }
-
-// ── Dev mode ──────────────────────────────────────────────────────────────────
 
 export interface DevModeState {
   enabled: boolean;

@@ -1,6 +1,3 @@
-/**
- * Vault dashboard — TVL, user share, hedge history, builder on-chain activity.
- */
 import { useQuery } from "@tanstack/react-query";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { builderApi, vaultApi } from "@/services/api";

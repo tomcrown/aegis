@@ -110,7 +110,6 @@ class Orchestrator:
         await self._elfa.close()
         log.info("Orchestrator stopped")
 
-    # ── Elfa sentiment + crash detection loop ─────────────────────────────────
 
     async def _elfa_poll_loop(self) -> None:
         log.info("Elfa poller started")
@@ -192,7 +191,6 @@ class Orchestrator:
             except Exception:
                 pass
 
-    # ── Macro context poll loop ────────────────────────────────────────────────
 
     async def _macro_poll_loop(self) -> None:
         """Refresh AI macro context every 30 minutes."""
@@ -207,7 +205,6 @@ class Orchestrator:
                 log.warning("Macro poll error: %s", exc)
             await asyncio.sleep(_MACRO_POLL_INTERVAL_S)
 
-    # ── Risk evaluation loop ───────────────────────────────────────────────────
 
     async def _risk_loop(self) -> None:
         log.info("Risk loop started — interval=%.1fs", _RISK_POLL_INTERVAL_S)
@@ -278,7 +275,6 @@ class Orchestrator:
         except PacificaError as exc:
             failures = self._consecutive_failures.get(wallet, 0) + 1
             self._consecutive_failures[wallet] = failures
-            # Use cached snapshot for up to 30 consecutive failures (~15s) then give up
             cached = self._account_cache.get(wallet)
             if cached and failures <= 30:
                 log.debug(
@@ -291,9 +287,7 @@ class Orchestrator:
                     log.warning("Pacifica fetch failed for %s: %s", wallet, exc)
                 return
 
-        # If no positions, nothing to hedge — broadcast safe state and return early
         if not positions:
-            # No positions = zero risk. Send 200 so frontend ring shows 0% danger (200-200=0).
             await ws_manager.broadcast(wallet, {
                 "type": "mmr_update",
                 "wallet": wallet,
@@ -307,13 +301,6 @@ class Orchestrator:
             })
             return
 
-        # ── Synthetic cross_mmr ───────────────────────────────────────────────
-        # Pacifica testnet always returns cross_mmr="0" — a known data bug.
-        # We derive it ourselves from data Pacifica DOES return correctly:
-        #   synthetic_cross_mmr = (mark_price / liquidation_price) × 100
-        # This is the actual mathematical definition: at liquidation, mark==liq → 100%.
-        # We take the LOWEST ratio across all positions (worst position drives overall risk).
-        # If no mark price in Redis yet (WS not warmed up), fall back to entry_price.
         mark_prices: dict[str, float] = {}
         synthetic_ratios: list[float] = []
 
@@ -420,7 +407,6 @@ class Orchestrator:
             },
         })
 
-        # ── Open hedges ────────────────────────────────────────────────────────
         for hedge in output.hedges_to_open:
             try:
                 mark_price = self._ws_monitor.get_mark_price(hedge.symbol)
@@ -465,7 +451,6 @@ class Orchestrator:
             except Exception as exc:
                 log.error("Failed to open hedge for %s/%s: %s", wallet, hedge.symbol, exc, exc_info=True)
 
-        # ── Close recovering hedges ────────────────────────────────────────────
         for recovery in output.hedges_to_close:
             try:
                 await self._execution.close_hedge(recovery)
@@ -483,7 +468,6 @@ class Orchestrator:
             except Exception as exc:
                 log.error("Failed to close hedge for %s/%s: %s", wallet, recovery.symbol, exc, exc_info=True)
 
-        # ── Alert for WATCH tier ───────────────────────────────────────────────
         if output.risk_tier == RiskTier.WATCH:
             await ws_manager.broadcast(wallet, {
                 "type": "alert",

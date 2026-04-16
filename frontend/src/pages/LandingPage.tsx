@@ -1,11 +1,5 @@
-/**
- * Aegis Landing Page
- * Hero: animated ring + letter-by-letter headline
- * Sections: scroll-reveal animations via IntersectionObserver
- */
 import { useEffect, useRef, useState } from "react";
 
-// ── useInView hook ────────────────────────────────────────────────────────────
 function useInView(options?: IntersectionObserverInit) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -29,7 +23,6 @@ function useInView(options?: IntersectionObserverInit) {
   return { ref, inView };
 }
 
-// ── RevealSection — wraps a section with a staggered reveal ──────────────────
 function RevealSection({
   children,
   className = "",
@@ -53,7 +46,6 @@ function RevealSection({
   );
 }
 
-// ── StaggerGrid — children reveal one by one ─────────────────────────────────
 function StaggerGrid({
   children,
   className = "",
@@ -79,7 +71,6 @@ function StaggerGrid({
   );
 }
 
-// ── Animated counter ──────────────────────────────────────────────────────────
 function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
@@ -113,7 +104,6 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   );
 }
 
-// ── AnimatedWord — letters stagger in ────────────────────────────────────────
 function AnimatedWord({
   text,
   baseDelay = 0,
@@ -138,7 +128,6 @@ function AnimatedWord({
   );
 }
 
-// ── Hero ring ─────────────────────────────────────────────────────────────────
 function HeroRing({ size = 220 }: { size?: number }) {
   const thickness = 12;
   const r = (size - thickness) / 2;
@@ -301,7 +290,6 @@ function OrbitDot({
   );
 }
 
-// ── Ticker ────────────────────────────────────────────────────────────────────
 const TICKER_ITEMS = [
   "Autonomous Hedging",
   "Elfa AI Sentiment",
@@ -332,7 +320,6 @@ function TickerBar() {
   );
 }
 
-// ── Section header with line ──────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   const { ref, inView } = useInView();
   return (
@@ -348,7 +335,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function LandingPage({ onConnect }: { onConnect: () => void }) {
   const [heroVisible, setHeroVisible] = useState(false);
 
@@ -361,10 +347,8 @@ export default function LandingPage({ onConnect }: { onConnect: () => void }) {
     try {
       await solana.connect();
       sessionStorage.setItem("aegis:connected", "true");
-      onConnect(); // ← triggers App to swap to dashboard
-    } catch (err) {
-      console.error("Phantom connect failed", err);
-    }
+      onConnect();
+    } catch (err) {}
   };
 
   useEffect(() => {

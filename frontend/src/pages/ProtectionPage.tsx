@@ -1,6 +1,3 @@
-/**
- * Protection page — hedge settings, threshold, activate/deactivate, hedge history.
- */
 import { useRef, useState } from "react";
 import { useAegisStore } from "@/stores/useAegisStore";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
@@ -122,7 +119,6 @@ function HedgeControls() {
           onChange={(e) => {
             const val = Number(e.target.value);
             setRiskState({ threshold: val });
-            // Debounce-save to backend (500ms after last change)
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
             if (address && riskState.aegisActive) {
               saveTimerRef.current = setTimeout(() => {

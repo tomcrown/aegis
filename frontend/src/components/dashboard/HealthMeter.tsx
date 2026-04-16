@@ -1,6 +1,3 @@
-/**
- * Health meter — ring + tier badge + Aegis toggle + threshold + demo trigger.
- */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAegisStore } from "@/stores/useAegisStore";
@@ -11,13 +8,16 @@ import { Sparkline } from "@/components/shared/Sparkline";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 
 export function HealthMeter() {
-  const riskState  = useAegisStore((s) => s.riskState);
+  const riskState = useAegisStore((s) => s.riskState);
   const setRiskState = useAegisStore((s) => s.setRiskState);
-  const devMode    = useAegisStore((s) => s.devMode);
+  const devMode = useAegisStore((s) => s.devMode);
   const { address } = useSolanaWallet();
 
   const [demoLoading, setDemoLoading] = useState(false);
-  const [demoResult, setDemoResult]   = useState<{ ok: boolean; msg: string } | null>(null);
+  const [demoResult, setDemoResult] = useState<{
+    ok: boolean;
+    msg: string;
+  } | null>(null);
 
   async function handleDemoTrigger() {
     if (!address) return;
@@ -25,9 +25,15 @@ export function HealthMeter() {
     setDemoResult(null);
     try {
       const r = await accountApi.demoTriggerHedge(address);
-      setDemoResult({ ok: true, msg: `Order #${r.order_id} placed — ${r.amount} ${r.symbol} ${r.side.toUpperCase()}` });
+      setDemoResult({
+        ok: true,
+        msg: `Order #${r.order_id} placed — ${r.amount} ${r.symbol} ${r.side.toUpperCase()}`,
+      });
     } catch (err) {
-      setDemoResult({ ok: false, msg: err instanceof Error ? err.message : "Trigger failed" });
+      setDemoResult({
+        ok: false,
+        msg: err instanceof Error ? err.message : "Trigger failed",
+      });
     } finally {
       setDemoLoading(false);
     }
@@ -57,11 +63,21 @@ export function HealthMeter() {
   return (
     <div className="card overflow-hidden animate-fade-in">
       {/* Status bar */}
-      <div className={`flex items-center justify-between border-b border-aegis-border px-5 py-3 ${
-        isHedge ? "bg-aegis-red/5" : isWatch ? "bg-aegis-amber/5" : "bg-aegis-green/5"
-      }`}>
+      <div
+        className={`flex items-center justify-between border-b border-aegis-border px-5 py-3 ${
+          isHedge
+            ? "bg-aegis-red/5"
+            : isWatch
+              ? "bg-aegis-amber/5"
+              : "bg-aegis-green/5"
+        }`}
+      >
         <div className="flex items-center gap-2">
-          <span className={isHedge ? "dot-red" : isWatch ? "dot-amber" : "dot-green"} />
+          <span
+            className={
+              isHedge ? "dot-red" : isWatch ? "dot-amber" : "dot-green"
+            }
+          />
           <span className="font-display text-xs font-semibold text-aegis-text">
             Account Health
           </span>
@@ -79,14 +95,21 @@ export function HealthMeter() {
       <div className="flex flex-col items-center gap-5 p-6">
         {/* Ring */}
         <div className={isHedge || isWatch ? "animate-pulse-ring" : ""}>
-          <RingMeter pct={riskState.crossMmrPct} size={210} thickness={14} tier={riskState.tier} />
+          <RingMeter
+            pct={riskState.crossMmrPct}
+            size={210}
+            thickness={14}
+            tier={riskState.tier}
+          />
         </div>
 
         {/* Sparkline — cross_mmr history */}
         <div className="w-full rounded-lg border border-aegis-border bg-aegis-surface2 px-3 py-2">
           <div className="mb-1 flex items-center justify-between">
             <span className="label">30s History</span>
-            <span className="font-mono text-[10px] text-aegis-muted">cross_mmr trend</span>
+            <span className="font-mono text-[10px] text-aegis-muted">
+              cross_mmr trend
+            </span>
           </div>
           <Sparkline
             values={sparklineData?.values ?? []}
@@ -113,11 +136,20 @@ export function HealthMeter() {
           <div className="h-6 w-px bg-aegis-border" />
           <div className="text-center">
             <div className="label">buffer</div>
-            <div className={`font-mono text-sm font-semibold ${
-              riskState.crossMmrPct >= 90 ? "text-aegis-red" :
-              riskState.crossMmrPct >= 80 ? "text-aegis-amber" : "text-aegis-green"
-            }`}>
-              {Math.max(0, 200 - riskState.crossMmrPct - riskState.threshold + 90).toFixed(1)}%
+            <div
+              className={`font-mono text-sm font-semibold ${
+                riskState.crossMmrPct >= 90
+                  ? "text-aegis-red"
+                  : riskState.crossMmrPct >= 80
+                    ? "text-aegis-amber"
+                    : "text-aegis-green"
+              }`}
+            >
+              {Math.max(
+                0,
+                200 - riskState.crossMmrPct - riskState.threshold + 90,
+              ).toFixed(1)}
+              %
             </div>
           </div>
         </div>
@@ -132,9 +164,13 @@ export function HealthMeter() {
           </div>
           <input
             type="range"
-            min={50} max={95} step={5}
+            min={50}
+            max={95}
+            step={5}
             value={riskState.threshold}
-            onChange={(e) => setRiskState({ threshold: Number(e.target.value) })}
+            onChange={(e) =>
+              setRiskState({ threshold: Number(e.target.value) })
+            }
             className="w-full cursor-pointer accent-aegis-accent"
           />
           <div className="flex justify-between font-mono text-[10px] text-aegis-muted">
@@ -148,9 +184,7 @@ export function HealthMeter() {
           onClick={() => void handleToggle()}
           disabled={!address}
           className={`w-full rounded-xl py-3 font-display text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${
-            riskState.aegisActive
-              ? "btn-danger"
-              : "btn-primary"
+            riskState.aegisActive ? "btn-danger" : "btn-primary"
           }`}
         >
           {riskState.aegisActive ? "Deactivate Aegis" : "Activate Protection"}
@@ -169,14 +203,18 @@ export function HealthMeter() {
                   <span className="h-3 w-3 animate-spin rounded-full border border-aegis-amber border-t-transparent" />
                   Placing hedge...
                 </span>
-              ) : "Force Trigger Hedge"}
+              ) : (
+                "Force Trigger Hedge"
+              )}
             </button>
             {demoResult && (
-              <div className={`rounded-lg border px-3 py-2 text-center font-mono text-xs ${
-                demoResult.ok
-                  ? "border-aegis-green/20 bg-aegis-green/5 text-aegis-green"
-                  : "border-aegis-red/20 bg-aegis-red/5 text-aegis-red"
-              }`}>
+              <div
+                className={`rounded-lg border px-3 py-2 text-center font-mono text-xs ${
+                  demoResult.ok
+                    ? "border-aegis-green/20 bg-aegis-green/5 text-aegis-green"
+                    : "border-aegis-red/20 bg-aegis-red/5 text-aegis-red"
+                }`}
+              >
                 {demoResult.msg}
               </div>
             )}

@@ -1,7 +1,4 @@
-"""
-Account proxy endpoints — thin wrappers over PacificaClient.
-All Aegis activation/deactivation logic routes through VaultManager.
-"""
+
 from __future__ import annotations
 
 import logging
@@ -22,7 +19,6 @@ async def account_info(
     request: Request,
     wallet: str = Query(..., description="Wallet address to query"),
 ) -> AccountInfo:
-    """Proxy GET /account from Pacifica and return typed AccountInfo."""
     try:
         return await request.app.state.pacifica.get_account_info(wallet)
     except Exception as exc:
@@ -34,7 +30,6 @@ async def positions(
     request: Request,
     wallet: str = Query(..., description="Wallet address to query"),
 ) -> list[Position]:
-    """Proxy GET /positions from Pacifica."""
     try:
         return await request.app.state.pacifica.get_positions(wallet)
     except Exception as exc:
@@ -59,10 +54,7 @@ async def activate_aegis(
     body: AegisActivateRequest,
     request: Request,
 ) -> AegisActivateResponse:
-    """
-    Activate Aegis protection for a wallet.
-    Fetches current positions, calculates premium, records vault share.
-    """
+  
     try:
         positions = await request.app.state.pacifica.get_positions(body.wallet)
     except Exception as exc:
@@ -74,7 +66,6 @@ async def activate_aegis(
         threshold=body.threshold,
     )
 
-    # Fuul: fire conversion event (best-effort — never blocks activation)
     await send_activation_event(
         wallet=body.wallet,
         deposited_usdc=share.deposited_usdc,
@@ -103,7 +94,6 @@ async def aegis_sparkline(
     request: Request,
     wallet: str = Query(...),
 ) -> dict:
-    """Return last 60 cross_mmr readings for sparkline chart (newest first)."""
     raw = await request.app.state.redis.lrange(f"aegis:sparkline:{wallet}", 0, 59)
     values = [float(v) for v in raw] if raw else []
     return {"wallet": wallet, "values": values}
@@ -129,11 +119,9 @@ async def update_threshold(
     body: AegisThresholdRequest,
     request: Request,
 ) -> dict:
-    """Update the user's hedge threshold without reactivating Aegis."""
     await request.app.state.vault.update_user_threshold(
         wallet=body.wallet, threshold=body.threshold
     )
-    # Invalidate orchestrator's in-memory threshold cache so new value is used immediately
     request.app.state.orchestrator.invalidate_threshold_cache(body.wallet)
     return {"wallet": body.wallet, "threshold": body.threshold}
 
@@ -143,11 +131,7 @@ async def demo_trigger_hedge(
     request: Request,
     wallet: str = Query(..., description="Wallet to force-trigger a hedge for"),
 ) -> dict:
-    """
-    DEMO ONLY — forces a hedge evaluation bypassing the cross_mmr threshold.
-    Used to demonstrate hedge execution in the hackathon demo video.
-    Calls the real Pacifica testnet API to place an actual order.
-    """
+ 
     from app.models.risk import Sentiment
     from app.models.risk import HedgeDecision, RiskTier
     from app.api.websocket.events import manager as ws_manager
@@ -168,8 +152,7 @@ async def demo_trigger_hedge(
     from decimal import Decimal, ROUND_DOWN
     from app.utils.decimal_utils import to_dec, to_wire
 
-    # Hedge 50% of position (neutral sentiment for demo)
-    # Round to lot size 0.00001 — Pacifica requires multiples of lot size
+ 
     hedge_amount = (to_dec(position.amount) * Decimal("0.5")).quantize(
         Decimal("0.00001"), rounding=ROUND_DOWN
     )
@@ -228,10 +211,7 @@ async def create_api_config_key(
     body: ApiConfigKeyRequest,
     request: Request,
 ) -> dict:
-    """
-    Forward a Phantom-signed create_api_key request to Pacifica.
-    The frontend signs the payload; this endpoint forwards it and stores the key.
-    """
+ 
     import os
     pacifica = request.app.state.pacifica
 

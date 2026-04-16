@@ -27,7 +27,6 @@ def _kp() -> Keypair:
     return Keypair()
 
 
-# ── Security: signature verification ──────────────────────────────────────────
 
 class TestSignatureVerification:
     def test_wrong_key_fails_verification(self):
@@ -77,7 +76,6 @@ class TestSignatureVerification:
         assert not sig.verify(kp.pubkey(), message)
 
 
-# ── Builder invariants ────────────────────────────────────────────────────────
 
 class TestBuilderInvariants:
     def test_market_order_always_has_builder_code(self):
@@ -134,7 +132,6 @@ class TestBuilderInvariants:
         assert p["type"] == "create_stop_order"
 
 
-# ── Canonical JSON edge cases ──────────────────────────────────────────────────
 
 class TestCanonicalJsonEdgeCases:
     def test_empty_dict(self):
