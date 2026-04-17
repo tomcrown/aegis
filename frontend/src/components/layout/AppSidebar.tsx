@@ -44,10 +44,40 @@ const NAV_ITEMS: {
   },
 ];
 
+export function MobileBottomNav({ page, onNavigate }: AppSidebarProps) {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-aegis-border bg-aegis-bg sm:hidden">
+      {NAV_ITEMS.map(({ id, label, Icon }) => {
+        const isActive = page === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onNavigate(id)}
+            className="flex flex-1 flex-col items-center gap-1 py-2.5 transition-colors"
+          >
+            <span
+              style={{ color: isActive ? "#4F8EF7" : "#4B5675" }}
+              className="transition-colors"
+            >
+              <Icon size={18} strokeWidth={2} />
+            </span>
+            <span
+              className="font-display text-[10px] font-semibold leading-tight transition-colors"
+              style={{ color: isActive ? "#E2E8F0" : "#4B5675" }}
+            >
+              {label}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function AppSidebar({ page, onNavigate }: AppSidebarProps) {
   return (
     <aside
-      className="flex w-52 shrink-0 flex-col border-r border-aegis-border"
+      className="hidden w-52 shrink-0 flex-col border-r border-aegis-border sm:flex"
       style={{
         background:
           "linear-gradient(180deg, rgba(13,17,28,0.95) 0%, rgba(9,12,20,0.98) 100%)",

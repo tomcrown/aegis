@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppSidebar, MobileBottomNav } from "@/components/layout/AppSidebar";
 import { AppNav, type AppPage } from "@/components/layout/AppNav";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useAegisWebSocket } from "@/hooks/useAegisWebSocket";
@@ -78,13 +78,14 @@ export default function DashboardPage({
       <AppNav onDisconnect={onDisconnect} />
       <div className="flex flex-1">
         <AppSidebar page={page} onNavigate={setPage} />
-        <main className="flex-1 px-6 py-6">
+        <main className="flex-1 px-4 py-4 pb-20 sm:px-6 sm:py-6 sm:pb-6">
           {page === "overview" && <OverviewPage />}
           {page === "protection" && <ProtectionPage />}
           {page === "intelligence" && <IntelligencePage />}
           {page === "vault" && <VaultPage />}
         </main>
       </div>
+      <MobileBottomNav page={page} onNavigate={setPage} />
     </div>
   );
 }

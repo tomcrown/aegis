@@ -368,7 +368,7 @@ export default function LandingPage({ onConnect }: { onConnect: () => void }) {
             <img
               src="/aegis.png"
               alt="Aegis Logo"
-              className="h-20 w-20 object-contain"
+              className="h-10 w-10 object-contain sm:h-20 sm:w-20"
             />
             <span className="font-display text-lg font-bold text-aegis-text">
               Aegis
@@ -386,7 +386,7 @@ export default function LandingPage({ onConnect }: { onConnect: () => void }) {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-20">
+      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 pt-20 sm:px-6">
         {/* Grid */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.025]"
@@ -421,7 +421,7 @@ export default function LandingPage({ onConnect }: { onConnect: () => void }) {
           </div>
 
           <div className="space-y-2" style={{ perspective: "600px" }}>
-            <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-aegis-text sm:text-6xl lg:text-7xl">
+            <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-aegis-text sm:text-5xl lg:text-7xl">
               {heroVisible && (
                 <>
                   <span>
